@@ -1,10 +1,11 @@
 from AST import *
+from TokenType import *
 
 class Parser:
 	def __init__(self, lexer):
 		self.lineNumber = 1
 		self.lex = lexer
-		self.current_token = lex.getNextToken()
+		self.current_token = self.lex.get_next_token()
 		
 	def error(self):
 		raise Exception("Invalid syntax on line: " + str(lineNumber))
@@ -15,7 +16,7 @@ class Parser:
 	def eat(self, tokType):
 		if self.current_token.type == tokType:
 			if tokType == TokenType.NEWLINE: self.lineNumber += 1
-			self.current_token = self.lex.getNextToken()
+			self.current_token = self.lex.get_next_token()
 		else:
 			error()
 	
@@ -28,12 +29,12 @@ class Parser:
 		
 	def statement_list(self):
 		nodes = []
-		node = statement()
+		node = self.statement()
 		nodes.append(node)
 		
 		while self.current_token.type != TokenType.EOF:
 			self.eat_end_of_statement()
-			nodes.append(statement())
+			nodes.append(self.statement())
 			
 		if self.current_token.type == TokenType.ID:
 			error()
@@ -50,8 +51,10 @@ class Parser:
 		elif self.current_token.type == TokenType.FUNCTION_DECLARE:
 			return function_declare_statement()
 		else:
-			return ASTNode()
-			
+			return ValueNode(self.expr())
+						
 		raise Exception("Invalid statement, line number: " + str(self.lineNumber))
 		
+	def expr(self):
+	    pass
 	

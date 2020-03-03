@@ -39,14 +39,14 @@ class ReturnNode(AST):
         
     def emit(self, vm):
         if self._expr != None:
-            self._expr.print(vm)
+            self._expr.emit(vm)
             vm.AppendInstruction(Instruction("RET", [ True ]))
         else:
             vm.AppendInstruction(Instruction("RET", [ False ]))
             
 class BinOpNode(AST):
     
-    def __init__(self, left, op, right)
+    def __init__(self, left, op, right):
         self._left = left
         self._op = op
         self._right = right

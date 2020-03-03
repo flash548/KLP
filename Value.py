@@ -78,6 +78,51 @@ class Value(object):
         else:
             return False
             
+    def scalar_context(self):
+        """ Impose Scalar Context on this _val """
+        if (self.type == "Undef"): return Value(None)
+        if (self._val == None): return Value(None)
+        if (self.type == "Scalar"): return Value(self._val)
+        elif (self.type == "List"):
+            return Value(self._val[-1])
+        elif (self.type == "Hash"):
+            return Value(self._val.keys()[-1])
+        else:
+            return Value(None)
+            
+    def list_context(self):
+        """ Impose List Context on this _val """
+        if (self.type == "Undef"): return Value(None)
+        if (self._val == None): return Value(None)
+        if (self.type == "Scalar"): return Value([self._val])
+        elif (self.type == "List"):
+            return Value(self._val)
+        elif (self.type == "Hash"):
+            s=[]
+            for i in self._val:
+                s.append(i)
+                s.append(self._val[i])
+            return Value(s)
+        else:
+            return Value(None)
+            
+    def hash_context(self):
+        """Impose Hash Context on this _val"""
+        if (self.type == "Undef"): return Value(None)
+        if (self._val == None): return Value(None)
+        if (self.type == "Scalar"): 
+            return Value({self._val: None})
+        elif (self.type == "List"):
+            return Value(self._val)
+        elif (self.type == "Hash"):
+            s=[]
+            for i in self._val:
+                s.append(i)
+                s.append(self._val[i])
+            return Value(s)
+        else:
+            return Value(None)
+            
     def __getitem__(self, key):
         if (self.type == "List"):
             if key > len(self._val):
@@ -88,25 +133,37 @@ class Value(object):
             return Value(None)
     
     def __str__(self):
-        return self.stringify()
+        if (self.type == "Undef"):
+            return ""
+        elif (self._val == "None"):
+            return ""
+        elif (self.type == "Scalar"):
+            return str(self._val)
+        elif (self.type == "List"):
+            return "".join(str(self._val))
+        elif (self.type == "Hash"):
+            s = ""
+            for i in self._val: s+= i+self._val[i]
+        else:
+            return ""
         
     def __int__(self):
         return int(self.numerify())
         
     def __float__(self):
-        return numerify()
+        return self.numerify()
         
     def __len__(self):
         if (self.type == "Undef"):
-            return 0
+            return Value(0)
         elif (self._val == "None"):
-            return 0
+            return Value(0)
         elif (self.type == "Scalar" and type(self._val) is str):
-            return len(self._val)
+            return Value(len(self._val))
         elif (self.type == "List" or self.type == "Hash"):
-            return len(self._val)
+            return Value(len(self._val))
         else:
-            return 0
+            return Value(0)
 
     def __abs__(self):
         return Value(abs(self.numerify()))

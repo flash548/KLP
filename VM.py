@@ -1,7 +1,10 @@
+from Value import *
 
 class Instruction:
     def __init__(self, opcode, args):
         self.opcode = opcode
+        if (not (type(args) is list)):
+        	raise Exception("Instruction args must be a list!")
         self.args = args
 
     def __str__(self):
@@ -9,8 +12,6 @@ class Instruction:
         for i in self.args:
             if i != None: s += str(i) + " "
         return s.strip()
-
-
 
 class VM:
     def __init__(self):
@@ -69,6 +70,7 @@ class VM:
     def step(self):
         if self.pc < len(self.pgm_stack):
             self.execute(self.pgm_stack[self.pc])
+            self.pc += 1
             return True
         else:
             if len(self.pc_stack) != 0:
@@ -84,11 +86,11 @@ class VM:
         if (instr.opcode == "POP"):
             self.stack.pop()
         elif (instr.opcode == "BINOP"):
-            self.perform_op(str(instr.args[0])
+            self.perform_op(str(instr.args[0]))
         elif (instr.opcode == "UNOP"):
             self.perform_unop(str(instr.args[0]))
         elif (instr.opcode == "PUSH CONST"):
-            self.stack.append(args[0])
+            self.stack.append(instr.args[0])
         elif (instr.opcode == "INDEX VAR"):
             self.perform_var_index(args[0])
         elif (instr.opcode == "PUSH VAR"):
@@ -98,8 +100,12 @@ class VM:
                 self.pc = int(instr.args[0])
         elif (instr.opcode == "JMP"):
             self.pc = int(instr.args[0])
-        elif (instr.opcode == "ASSIGN"):
-            self.perform_assign(instr.args)
+        elif (instr.opcode == "ASSIGN_SCALAR"):
+            self.perform_scalar_assign(instr.args[0])
+        elif (instr.opcode == "ASSIGN_LIST"):
+            self.perform_list_assign(instr.args[0])
+        elif (instr.opcode == "ASSIGN_HASH"):
+            self.perform_list_assign(instr.args[0])
         elif (instr.opcode == "CALLUSER"):
             self.perform_call_user_func(str(instr.args[0]))
         elif (instr.opcode == "CALL"):
@@ -110,10 +116,9 @@ class VM:
             raise Exception("Unknown Instruction: " + instr.opcode)
             
     def perform_op(self, op):
-        
         _right = self.stack.pop()
         _left = self.stack.pop()
-        
+
         if (op == '+'):
             self.stack.append(_left + _right)
         elif (op == '-'):
@@ -144,7 +149,7 @@ class VM:
             self.stack.append(_left | _right)
         elif (op == '<<'):
             self.stack.append(_left << _right)
-        elif (op = '>>'):
+        elif (op == '>>'):
             self.stack.append(_left >> _right)
         else:
             raise Exception("Invalid operation: " + op)
@@ -154,10 +159,10 @@ class VM:
         
         if (op == '+'):
             self.stack.append(+_left)
-        elif (op == '-')
+        elif (op == '-'):
             self.stack.append(-_left)
         elif (op == '!'):
-            self.stack.append(!_left)
+            self.stack.append(not _left)
         else:
             raise Exception("Invalid Unop: " + op)
             
@@ -166,7 +171,33 @@ class VM:
         _left = self.stack.pop()
         self.stack.append(_left[_index])
         
-    def perform_push_var(self):
+    def perform_push_var(self, name):
+        self.stack.append(self.get_variable(name))
         
-            
+    def perform_call_user_func(self, name):
+    	if (name in self.pgm_frames):
+    		self.pgm_stack_frames.append(self.pgm_stack)
+    		self.pc_stack.append(self.pc)
+    		
+    		self.pgm_stack = self.pgm_frames[name]
+    		self.pc = 0
+    		
+    		self.scope_stack.append(self.current_scope)
+    		self.current_scope = {}
+        else:
+        	raise Exception("Undefined sub: " + name)
     
+    def perform_func_call(self, name):
+    	if (name == "print"):
+    		print str(self.stack.pop())
+    	else:
+    		raise Exception("Undefined built-in: " + name)
+    		
+    def perform_scalar_assign(self, name):
+    	self.set_variable(name, self.stack.pop().scalar_context())
+    	
+    def perform_list_assign(self, name):
+    	self.set_variable(name, self.stack.pop().list_context())
+    	
+    def perform_hash_assign(self, name):
+    	self.set_variable(name, self.stack.pop().hash_context())

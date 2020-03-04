@@ -5,13 +5,14 @@ from TokenType import Token, TokenType
 
 class Lexer:
     def __init__(self, text):
-        self.text = text;
+        self.text = text
         self.pos = 0
         self.current_char = self.text[self.pos]
         self.line_number = 0
 
     def error(self):
-        raise Exception("Invalid character. Line number: " + str(self.line_number))
+        raise Exception("Invalid character. Line number: " +
+                        str(self.line_number))
 
     def advance(self):
         self.pos += 1
@@ -55,7 +56,8 @@ class Lexer:
 
     def parse_hex(self):
         result = ""
-        while (self.current_char != '\0' and (self.current_char in string.hexdigits)):
+        while (self.current_char != '\0' and (
+                self.current_char in string.hexdigits)):
             result += self.current_char
             self.advance()
 
@@ -64,8 +66,10 @@ class Lexer:
     def parse_string(self):
         result = ""
         while (self.current_char != '\0'):
-            if (self.current_char == '"' and self.peek() != '"'): break # end of string
-            elif (self.current_char == '"' and self.peek() == '"'): self.advance() # deal with double quote lierals
+            if (self.current_char == '"' and self.peek() != '"'):
+                break  # end of string
+            elif (self.current_char == '"' and self.peek() == '"'):
+                self.advance()  # deal with double quote lierals
             elif (self.current_char == '\\' and self.peek() == 'n'):
                 result += '\n'
                 self.advance()
@@ -89,27 +93,40 @@ class Lexer:
 
     def get_id(self):
         name = ""
-        while (self.current_char != '\0' and (self.current_char.isalnum() or self.current_char == '_')):
+        while (
+            self.current_char != '\0' and (
+                self.current_char.isalnum() or self.current_char == '_')):
             name += self.current_char
             self.advance()
-            
-        if (name == "if"): return Token(TokenType.IF, Value('if'))
-        elif (name == "elsif"): return Token(TokenType.ELSIF, Value('elsif'))
-        elif (name == "else"): return Token(TokenType.ELSE, Value('else'))
-        elif (name == "while"): return Token(TokenType.WHILE, Value('while'))
-        elif (name == "unless"): return Token(TokenType.UNLESS, Value('unless'))
-        elif (name == "for"): return Token(TokenType.FOR, Value('for'))
-        elif (name == "next"): return Token(TokenType.NEXT, Value('next'))
-        elif (name == "last"): return Token(TokenType.LAST, Value('last'))
-        elif (name == "continue"): return Token(TokenType.CONTINUE, Value('continue'))
-        elif (name == "until"): return Token(TokenType.UNTIL, Value('until'))
+
+        if (name == "if"):
+            return Token(TokenType.IF, Value('if'))
+        elif (name == "elsif"):
+            return Token(TokenType.ELSIF, Value('elsif'))
+        elif (name == "else"):
+            return Token(TokenType.ELSE, Value('else'))
+        elif (name == "while"):
+            return Token(TokenType.WHILE, Value('while'))
+        elif (name == "unless"):
+            return Token(TokenType.UNLESS, Value('unless'))
+        elif (name == "for"):
+            return Token(TokenType.FOR, Value('for'))
+        elif (name == "next"):
+            return Token(TokenType.NEXT, Value('next'))
+        elif (name == "last"):
+            return Token(TokenType.LAST, Value('last'))
+        elif (name == "continue"):
+            return Token(TokenType.CONTINUE, Value('continue'))
+        elif (name == "until"):
+            return Token(TokenType.UNTIL, Value('until'))
         return Token(TokenType.ID, Value(name))
 
     def get_next_token(self):
         while (self.current_char != '\0'):
             if (self.current_char.isspace()):
                 if (self.current_char == '\r' or self.current_char == '\n'):
-                    if (self.current_char == '\r' and self.peek() == '\n'): self.advance()
+                    if (self.current_char == '\r' and self.peek() == '\n'):
+                        self.advance()
                     self.advance()
                     self.line_number += 1
                 self.skip_whitespace()
@@ -137,36 +154,42 @@ class Lexer:
 
             if (self.current_char.isalnum()):
                 if (self.current_char == 'e' and
-                    self.peek() == 'q'):
-                        self.advance(); self.advance();
-                        return Token(TokenType.STR_EQ, Value('eq'))
+                        self.peek() == 'q'):
+                    self.advance()
+                    self.advance()
+                    return Token(TokenType.STR_EQ, Value('eq'))
                 elif (self.current_char == 'n' and
-                    self.peek() == 'e'):
-                        self.advance(); self.advance();
-                        return Token(TokenType.STR_NEQ, Value('ne'))
+                      self.peek() == 'e'):
+                    self.advance()
+                    self.advance()
+                    return Token(TokenType.STR_NEQ, Value('ne'))
                 elif (self.current_char == 'l' and
-                    self.peek() == 't'):
-                        self.advance(); self.advance();
-                        return Token(TokenType.STR_LT, Value('lt'))
+                      self.peek() == 't'):
+                    self.advance()
+                    self.advance()
+                    return Token(TokenType.STR_LT, Value('lt'))
                 elif (self.current_char == 'l' and
-                    self.peek() == 'e'):
-                        self.advance(); self.advance();
-                        return Token(TokenType.STR_LE, Value('le'))
+                      self.peek() == 'e'):
+                    self.advance()
+                    self.advance()
+                    return Token(TokenType.STR_LE, Value('le'))
                 elif (self.current_char == 'g' and
-                    self.peek() == 'e'):
-                        self.advance(); self.advance();
-                        return Token(TokenType.STR_GE, Value('ge'))
+                      self.peek() == 'e'):
+                    self.advance()
+                    self.advance()
+                    return Token(TokenType.STR_GE, Value('ge'))
                 elif (self.current_char == 'g' and
-                    self.peek() == 't'):
-                        self.advance(); self.advance();
-                        return Token(TokenType.STR_GT, Value('gt'))
+                      self.peek() == 't'):
+                    self.advance()
+                    self.advance()
+                    return Token(TokenType.STR_GT, Value('gt'))
                 else:
                     return self.get_id()
-                    
+
             if (self.current_char == '$' and self.peek().isalnum()):
                 self.advance()
                 return Token(TokenType.CONTEXT, Value('SCALAR'))
-                
+
             if (self.current_char == '@' and self.peek().isalnum()):
                 self.advance()
                 return Token(TokenType.CONTEXT, Value('LIST'))
@@ -178,7 +201,7 @@ class Lexer:
             if (self.current_char == '='):
                 self.advance()
                 if (self.current_char == '='):
-                    self.advance();
+                    self.advance()
                     return Token(TokenType.EQ, Value('=='))
                 else:
                     return Token(TokenType.ASSIGN, Value('='))
@@ -280,5 +303,3 @@ class Lexer:
             self.error()
 
         return Token(TokenType.EOF, Value("EOF"))
-
-

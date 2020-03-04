@@ -22,7 +22,7 @@ class TokenType:
     EOF = "EOF"
     AND = "AND"
     OR = "OR"
-    XOR = "XOR" 
+    XOR = "XOR"
     MOD = "MOD"
     GT = "GT"
     LT = "LT"

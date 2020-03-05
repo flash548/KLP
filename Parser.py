@@ -26,10 +26,12 @@ class Parser:
     def eat_end_of_statement(self):
         if self.current_token.type == TokenType.SEMICOLON:
             self.eat(TokenType.SEMICOLON)
-
+    
+    # program <- statement_list EOF
     def program(self):
         return RootNode(self.statement_list())
 
+    # statement_list <- statement+
     def statement_list(self):
         nodes = []
         node = self.statement()
@@ -44,14 +46,21 @@ class Parser:
 
         return nodes
 
+    # statement <- Comment / Func_Decl / Cond / Loop / Block / Sideff ';'
     def statement(self):
-        if self.current_token.type == TokenType.IF:
-            return self.if_statement()
-        elif self.current_token.type == TokenType.WHILE:
-            return self.while_statement()
+        if self.current_token.type == TokenType.COMMENT:
+            return AST()
         elif self.current_token.type == TokenType.FUNCTION_DECLARE:
             return self.function_declare_statement()
-        else:
+        elif self.current_token.type == TokenType.IF:
+            return self.cond_statement()
+        elif self.current_token.type == TokenType.WHILE:
+            return self.while_statement()
+        elif self.current_token.type == TokenType.LCURLY:
+            self.eat(TokenType.LCURLY)
+            return self.statement_list()
+            self.eat(TokenType.RCURLY)
+
             return self.expression()
 
         raise Exception("Invalid statement, line number: " +

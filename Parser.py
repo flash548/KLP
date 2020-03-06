@@ -52,15 +52,17 @@ class Parser:
             return AST()
         elif self.current_token.type == TokenType.FUNCTION_DECLARE:
             return self.function_declare_statement()
-        elif self.current_token.type == TokenType.IF:
+        elif self.current_token.type == TokenType.IF: # TODO: unless
             return self.cond_statement()
-        elif self.current_token.type == TokenType.WHILE:
+        elif self.current_token.type == TokenType.WHILE: # TODO: continue
             return self.while_statement()
+        elif self.current_token.type == TokenType.FOR:
+            return self.for_statement()
         elif self.current_token.type == TokenType.LCURLY:
             self.eat(TokenType.LCURLY)
             return self.statement_list()
             self.eat(TokenType.RCURLY)
-
+        else: # TODO: if/unless 
             return self.expression()
 
         raise Exception("Invalid statement, line number: " +

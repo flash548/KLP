@@ -175,21 +175,52 @@ class IndexVar(AST):
         vm.append_instruction(Instruction("INDEX VAR", []))
 
 
-class VarNode(AST):
+class ScalarVarNode(AST):
 
     def __init__(self, name):
         self._name = name
 
-    def emit(self, vm):
-        vm.append_instruction(Instruction("PUSH VAR", [self._name]))
+    def emit(self, vm):    
+        vm.append_instruction(Instruction("PUSH SCALAR VAR",
+            [self._name]))
+            
+class ListVarNode(AST):
 
-
-class AssignNode(AST):
-
-    def __init__(self, name, context):
+    def __init__(self, name):
         self._name = name
-        self._context = context
+
+    def emit(self, vm):    
+        vm.append_instruction(Instruction("PUSH LIST VAR",
+            [self._name]))
+
+class ListAssignNode(AST):
+
+    def __init__(self, name, arry):
+        self._name = name
+        self._arry = arry
+        
+    def emit(self, vm):
+        # assigning a scalar in list context, just take first elemt
+        if not (type(self._arry) is list):
+            self._arry[0].emit(vm)
+        else:
+            for i in self._arry:
+                i.emit(vm)
+        vm.append_instruction(Instruction(
+            "LIST ASSIGN", [self._name, len(self._arry) ]))
+
+class ScalarAssignNode(AST):
+
+    def __init__(self, name, expr):
+        self._name = name
+        self._expr = expr
 
     def emit(self, vm):
+        if (type(self._expr) is list):
+            # assigning list in scalar context, emit last element
+            i[-1].emit(vm)
+        else:
+            # an actual scalar value
+            self._expr.emit(vm)
         vm.append_instruction(Instruction(
-            "ASSIGN", [self._name, self._context]))
+            "SCALAR ASSIGN", [self._name ]))

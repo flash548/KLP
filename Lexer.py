@@ -119,7 +119,8 @@ class Lexer:
             return Token(TokenType.CONTINUE, Value('continue'))
         elif (name == "until"):
             return Token(TokenType.UNTIL, Value('until'))
-        return Token(TokenType.ID, Value(name))
+        else:
+            return Token(TokenType.ID, Value(name))
 
     def get_next_token(self):
         while (self.current_char != '\0'):
@@ -188,11 +189,11 @@ class Lexer:
 
             if (self.current_char == '$' and self.peek().isalnum()):
                 self.advance()
-                return Token(TokenType.CONTEXT, Value('SCALAR'))
+                return Token(TokenType.SCALAR, Value('SCALAR'))
 
             if (self.current_char == '@' and self.peek().isalnum()):
                 self.advance()
-                return Token(TokenType.CONTEXT, Value('LIST'))
+                return Token(TokenType.LIST, Value('LIST'))
 
             if (self.current_char == '.'):
                 self.advance()

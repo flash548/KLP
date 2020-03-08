@@ -39,6 +39,9 @@ class Parser:
 
         while self.current_token.type != TokenType.EOF:
             self.eat_end_of_statement()
+            
+            # incase this statement was last in the file... check agian
+            if (self.current_token.type == TokenType.EOF): break
             nodes.append(self.statement())
 
         if self.current_token.type == TokenType.ID:
@@ -66,8 +69,8 @@ class Parser:
             return self.expression()
 
         raise Exception("Invalid statement, line number: " +
-                        str(self.lineNumber))
-
+                        str(self.lineNumber))            
+    
     def if_statement(self):
         pass
 
@@ -122,7 +125,28 @@ class Parser:
 
     def factor(self):
         token = self.current_token
-        if (token.type == TokenType.PLUS):
+        if (token.type == TokenType.SCALAR):
+            self.eat(TokenType.SCALAR)
+            name = str(self.current_token.value)
+            self.eat(TokenType.ID)
+            if (self.current_token.type == TokenType.ASSIGN):
+                self.eat(TokenType.ASSIGN)
+                if (self.current_token.type == TokenType.LPAREN):
+                    return ScalarAssignNode(name, self.consume_list())
+                else:
+                    return ScalarAssignNode(name, self.expression())
+            else:
+                return ScalarVarNode(name)
+        elif (token.type == TokenType.LIST):
+            self.eat(TokenType.LIST)
+            name = str(self.current_token.value)
+            self.eat(TokenType.ID)
+            if (self.current_token.type == TokenType.ASSIGN):
+                self.eat(TokenType.ASSIGN)                
+                return ListAssignNode(name, self.consume_list())
+            else:
+                return ListVarNode(name)
+        elif (token.type == TokenType.PLUS):
             self.eat(TokenType.PLUS)
             return UnOpNode(Value('+'), self.factor())
         elif (token.type == TokenType.MINUS):
@@ -147,3 +171,17 @@ class Parser:
             return result
 
         raise Exception("Unknown token in factor(): " + str(token.value))
+        
+    def consume_list(self):
+        list_elems = []
+        end_token = TokenType.SEMICOLON
+        if (self.current_token.type == TokenType.LPAREN):
+            end_token = TokenType.RPAREN
+            self.eat(TokenType.LPAREN)
+        while ((self.current_token.type != end_token) and
+                (self.current_token.type != TokenType.SEMICOLON)):
+            list_elems.append(self.expression())
+            if (self.current_token.type == TokenType.COMMA):
+                self.eat(TokenType.COMMA)
+        self.eat(end_token)
+        return list_elems

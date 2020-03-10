@@ -11,8 +11,7 @@ class Lexer:
         self.line_number = 0
 
     def error(self):
-        raise Exception("Invalid character. Line number: " +
-                        str(self.line_number))
+        raise Exception("Invalid character. Line number: " + str(self.line_number))
 
     def advance(self):
         self.pos += 1
@@ -66,9 +65,9 @@ class Lexer:
     def parse_string(self):
         result = ""
         while (self.current_char != '\0'):
-            if (self.current_char == '"' and self.peek() != '"'):
+            if (self.current_char == '"'):
                 break  # end of string
-            elif (self.current_char == '"' and self.peek() == '"'):
+            elif (self.current_char == '\\' and self.peek() == '"'):
                 self.advance()  # deal with double quote lierals
             elif (self.current_char == '\\' and self.peek() == 'n'):
                 result += '\n'
@@ -90,6 +89,18 @@ class Lexer:
 
         self.advance()
         return Token(TokenType.STR, Value(result))
+
+    def parse_literal_string(self):
+        result = ""
+        while (self.current_char != '\0'):
+            if (self.current_char == "'"):
+                break  # end of string
+            result += self.current_char
+            self.advance()
+
+        self.advance()
+        return Token(TokenType.STR, Value(result))
+
 
     def get_id(self):
         name = ""
@@ -152,6 +163,10 @@ class Lexer:
             if (self.current_char == '"'):
                 self.advance()
                 return self.parse_string()
+
+            if (self.current_char == "'"):
+                self.advance()
+                return self.parse_literal_string()
 
             if (self.current_char.isalnum()):
                 if (self.current_char == 'e' and
@@ -216,6 +231,10 @@ class Lexer:
                 return Token(TokenType.MOD, Value('%'))
 
             if (self.current_char == ':'):
+                if (self.peek() == ':'):
+                    self.advance()
+                    self.advance()
+                    return Token(TokenType.COLONCOLON, Value('::'))
                 self.advance()
                 return Token(TokenType.COLON, Value(':'))
 
@@ -300,7 +319,7 @@ class Lexer:
             if (self.current_char == ']'):
                 self.advance()
                 return Token(TokenType.RBRACKET, Value(']'))
-
+            print self.current_char
             self.error()
 
         return Token(TokenType.EOF, Value("EOF"))

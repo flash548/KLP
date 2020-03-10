@@ -129,14 +129,19 @@ class Parser:
             self.eat(TokenType.SCALAR)
             name = str(self.current_token.value)
             self.eat(TokenType.ID)
+            index_expr = None
+            if (self.current_token.type == TokenType.LBRACKET):
+                self.eat(TokenType.LBRACKET)
+                index_expr = self.expression()
+                self.eat(TokenType.RBRACKET)
             if (self.current_token.type == TokenType.ASSIGN):
                 self.eat(TokenType.ASSIGN)
                 if (self.current_token.type == TokenType.LPAREN):
-                    return ScalarAssignNode(name, self.consume_list())
+                    return ScalarAssignNode(name, self.consume_list(), index_expr)
                 else:
-                    return ScalarAssignNode(name, self.expression())
+                    return ScalarAssignNode(name, self.expression(), index_expr)
             else:
-                return ScalarVarNode(name)
+                return ScalarVarNode(name, index_expr)
         elif (token.type == TokenType.LIST):
             self.eat(TokenType.LIST)
             name = str(self.current_token.value)
@@ -145,7 +150,7 @@ class Parser:
                 self.eat(TokenType.ASSIGN)                
                 return ListAssignNode(name, self.consume_list())
             else:
-                return ListVarNode(name)
+                return ListVarNode(name)        
         elif (token.type == TokenType.PLUS):
             self.eat(TokenType.PLUS)
             return UnOpNode(Value('+'), self.factor())
@@ -155,6 +160,17 @@ class Parser:
         elif (token.type == TokenType.NOT):
             self.eat(TokenType.NOT)
             return UnOpNode(Value('!'), self.factor())
+        elif (token.type == TokenType.ID):
+            name = token.value
+            self.eat(TokenType.ID)
+            if (str(name) in TokenType.BUILTINS):
+                # its a builtin
+                args = self.consume_list()
+                return BuiltInFunctionNode(name, args)
+            else:
+                # its a BAREWORD, croak for now
+                print "CROAK!"
+                return AST()
         elif (token.type == TokenType.STR):
             self.eat(TokenType.STR)
             return ValueNode(token.value)

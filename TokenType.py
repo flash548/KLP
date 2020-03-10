@@ -74,9 +74,11 @@ class TokenType:
     STR_GT = "STR_GT"
     MATCH = "MATCH"
     NOT_MATCH = "NOT MATCH"
+    COLONCOLON = "COLONCOLON"
     DOTDOT = "DOTDOT"
     BACKTICK = 'BACKTICK'
     COMPLEMENT = 'COMPLEMENT'
     SCALAR = 'SCALAR'
     LIST = 'LIST'
     END_OF_SOURCE = "END OF SOURCE"
+    BUILTINS = [ 'print' ]

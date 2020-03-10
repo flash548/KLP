@@ -149,24 +149,35 @@ class Value(object):
         else:
             return Value(None)
 
+    def __setitem__(self, key, v):
+        if (self.type == "List"):
+            if key >= len(self._val):                
+                end = key-len(self._val);
+                for i in range(0, end+1):
+                    self._val.append(Value(None))
+       
+            self._val[key] = v
+        else:
+            pass
+            
     def __getitem__(self, key):
         if (self.type == "List"):
-            if key > len(self._val):
+            if key >= len(self._val):
                 return Value(None)
             else:
-                return Value(self._val[key])
+                return self._val[key]
         else:
             return Value(None)
 
     def __str__(self):
         if (self.type == "Undef"):
             return ""
-        elif (self._val == "None"):
+        elif (self._val == None):
             return ""
         elif (self.type == "Scalar"):
             return str(self._val)
         elif (self.type == "List"):
-            return "".join(str(self._val))
+            return "".join(map(lambda x: str(x), (self._val)))
         elif (self.type == "Hash"):
             s = ""
             for i in self._val:
@@ -262,3 +273,21 @@ class Value(object):
 
     def str_ge(self, other):
         return Value(len(self.stringify()) >= len(other.stringify()))
+        
+    def push(self, v):
+        if (self.type == "List"):
+            self._val.append(v)
+        
+    def reverse(self):
+        if (self.type == "List"):
+            self._val.reverse()
+        
+    def shift(self):
+        if (self.type == "List"):
+            val = self._val[0]
+            self._val = _val[1:]
+            return val
+        else:
+            raise Exception("shift must operate on array!")
+            
+            

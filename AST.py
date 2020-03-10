@@ -91,9 +91,17 @@ class BuiltInFunctionNode(AST):
     def emit(self, vm):
         for i in self._args:
             i.emit(vm)
-            vm.append_instruction(Instruction(
-                "CALL", [self._name, len(self._args)]))
+        vm.append_instruction(Instruction(
+            "CALL", [self._name, len(self._args)]))
 
+class IndexNode(AST):
+
+    def __init__(self, expr):
+        self._expr = expr
+        
+    def emit(self, vm):
+        self._expr.emit(vm)
+        vm.append_instruction(Instruction("INDEX VAR"), [ None ])
 
 class IfNode(AST):
 
@@ -177,12 +185,16 @@ class IndexVar(AST):
 
 class ScalarVarNode(AST):
 
-    def __init__(self, name):
+    def __init__(self, name, index_expr):
         self._name = name
+        self._index_expr = index_expr
 
-    def emit(self, vm):    
+    def emit(self, vm):   
+        if (self._index_expr != None):
+            self._index_expr.emit(vm)
+            
         vm.append_instruction(Instruction("PUSH SCALAR VAR",
-            [self._name]))
+            [ self._name, True if self._index_expr != None else False ]))
             
 class ListVarNode(AST):
 
@@ -211,11 +223,15 @@ class ListAssignNode(AST):
 
 class ScalarAssignNode(AST):
 
-    def __init__(self, name, expr):
+    def __init__(self, name, expr, index_expr):
         self._name = name
         self._expr = expr
+        self._index_expr = index_expr;
 
     def emit(self, vm):
+        if (self._index_expr != None):
+            self._index_expr.emit(vm)
+            
         if (type(self._expr) is list):
             # assigning list in scalar context, emit last element
             i[-1].emit(vm)
@@ -223,4 +239,4 @@ class ScalarAssignNode(AST):
             # an actual scalar value
             self._expr.emit(vm)
         vm.append_instruction(Instruction(
-            "SCALAR ASSIGN", [self._name ]))
+            "SCALAR ASSIGN", [self._name, True if self._index_expr != None else False ]))

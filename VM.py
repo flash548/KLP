@@ -23,7 +23,7 @@ class VM:
         self.stack = []
         self.pc_stack = []
         self.pc = 0
-        self.current_scope = {}
+        self.current_scope = {}  # place where we store variables
         self.scope_stack = []
 
     def get_variable(self, name):
@@ -35,8 +35,7 @@ class VM:
                 if name in scp:
                     return scp[name]
 
-        # if we get here, then no var was found
-        raise Exception("Unknown var name: " + name)
+        return Value()  # if we get here, autovivify
 
     def var_exists(self, name):
         try:
@@ -81,6 +80,11 @@ class VM:
         print "Stack Dump: (length: %i)" % len(self.stack)
         for i in range(0, len(self.stack)):
             print str(self.stack[i])
+            
+    def dump_current_scope(self):
+        print "Current Scope Dump:"
+        for i in self.current_scope:
+            print i + ": " + str(self.current_scope[i])
 
     def run(self):
         while self.step():
@@ -112,22 +116,21 @@ class VM:
             self.stack.append(instr.args[0])
         elif (instr.opcode == "INDEX VAR"):
             self.perform_var_index(args[0])
-        elif (instr.opcode == "PUSH VAR"):
-            self.perform_push_var(str(instr.args[0]))
+        elif (instr.opcode == "PUSH SCALAR VAR"):
+            self.perform_push_var(str(instr.args[0]), instr.args[1], 'scalar')
+        elif (instr.opcode == "PUSH LIST VAR"):
+            self.perform_push_var(str(instr.args[0]), instr.args[1], 'list')
         elif (instr.opcode == "BZ"):
             if (not self.stack.pop()):
                 self.pc = int(instr.args[0])
         elif (instr.opcode == "JMP"):
             self.pc = int(instr.args[0])
-        elif (instr.opcode == "ASSIGN"):
-            if (instr.args[1] == "SCALAR"):
-                self.perform_scalar_assign(instr.args[0])
-            elif (instr.args[1] == "LIST"):
-                self.perform_list_assign(instr.args[0])
-            elif (instr.args[1] == "HASH"):
-                self.perform_list_assign(instr.args[0])
-            else:
-                raise Exception("Unknown context: " + instr.args[1])
+        elif (instr.opcode == "SCALAR ASSIGN"):
+            self.perform_scalar_assign(instr.args[0], instr.args[1])
+        elif (instr.opcode == "LIST ASSIGN"):
+            self.perform_list_assign(instr.args[0], instr.args[1])
+        elif (instr.opcode == "HASH ASSIGN"):
+            self.perform_list_assign(instr.args[0])
         elif (instr.opcode == "CALLUSER"):
             self.perform_call_user_func(str(instr.args[0]))
         elif (instr.opcode == "CALL"):
@@ -205,10 +208,18 @@ class VM:
     def perform_var_index(self):
         _index = self.stack.pop()
         _left = self.stack.pop()
-        self.stack.append(_left[_index])
+        self.stack.append(_left[_index].scalar_context())
 
-    def perform_push_var(self, name):
-        self.stack.append(self.get_variable(name))
+    def perform_push_var(self, name, index_expr, context):
+        v = self.get_variable(name)
+        if (index_expr != None):
+            v = v[int(self.stack.pop())]    
+        if (context == 'scalar'):
+            self.stack.append(v.scalar_context())
+        elif (context == 'list'):
+            self.stack.append(v.list_context())
+        else:
+            raise Exception("Unknown context!")
 
     def perform_call_user_func(self, name):
         if (name in self.pgm_frames):
@@ -223,17 +234,31 @@ class VM:
         else:
             raise Exception("Undefined sub: " + name)
 
-    def perform_func_call(self, name):
+    def perform_func_call(self, name, argslen):
+        args = []
+        for i in range(0, argslen):
+            args.append(self.stack.pop())
+            
+        
         if (name == "print"):
-            print str(self.stack.pop())
+            print str(args[0])
         else:
             raise Exception("Undefined built-in: " + name)
 
-    def perform_scalar_assign(self, name):
-        self.set_variable(name, self.stack.pop().scalar_context())
+    def perform_scalar_assign(self, name, index_expr):
+        v = self.get_variable(name)
+        if (index_expr != None):
+            v[self.stack.pop().numerify()] = self.stack.pop().scalar_context()
+        else:
+            v = self.stack.pop().scalar_context()
+        self.set_variable(name, v)
 
-    def perform_list_assign(self, name):
-        self.set_variable(name, self.stack.pop().list_context())
+    def perform_list_assign(self, name, length):
+        arry = Value([])
+        for i in range(0, length):
+            arry.push(self.stack.pop())
+        arry.reverse()
+        self.set_variable(name, arry)
 
     def perform_hash_assign(self, name):
         self.set_variable(name, self.stack.pop().hash_context())

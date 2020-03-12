@@ -105,7 +105,7 @@ class Value(object):
         if (self.type == "Scalar"):
             return Value(self._val)
         elif (self.type == "List"):
-            return Value(self._val[-1])
+            return Value(len(self._val))
         elif (self.type == "Hash"):
             return Value(self._val.keys()[-1])
         else:

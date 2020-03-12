@@ -35,7 +35,7 @@ class VM:
                 if name in scp:
                     return scp[name]
 
-        return Value()  # if we get here, autovivify
+        return Value(None)  # if we get here, autovivify
 
     def var_exists(self, name):
         try:
@@ -120,6 +120,8 @@ class VM:
             self.perform_push_var(str(instr.args[0]), instr.args[1], 'scalar')
         elif (instr.opcode == "PUSH LIST VAR"):
             self.perform_push_var(str(instr.args[0]), instr.args[1], 'list')
+        elif (instr.opcode == "PUSH ANON LIST"):
+            self.perform_push_anon_list(instr.args[0])
         elif (instr.opcode == "BZ"):
             if (not self.stack.pop()):
                 self.pc = int(instr.args[0])
@@ -210,9 +212,12 @@ class VM:
         _left = self.stack.pop()
         self.stack.append(_left[_index].scalar_context())
 
+    # name - variable name
+    # index_expr - T/F if we're indexing this variable
+    # context - scalar or list
     def perform_push_var(self, name, index_expr, context):
         v = self.get_variable(name)
-        if (index_expr != None):
+        if (index_expr == True):
             v = v[int(self.stack.pop())]    
         if (context == 'scalar'):
             self.stack.append(v.scalar_context())
@@ -237,8 +242,7 @@ class VM:
     def perform_func_call(self, name, argslen):
         args = []
         for i in range(0, argslen):
-            args.append(self.stack.pop())
-            
+            args.append(self.stack.pop())            
         
         if (name == "print"):
             print str(args[0])
@@ -247,11 +251,20 @@ class VM:
 
     def perform_scalar_assign(self, name, index_expr):
         v = self.get_variable(name)
-        if (index_expr != None):
-            v[self.stack.pop().numerify()] = self.stack.pop().scalar_context()
+        if (index_expr == True):
+            val = self.stack.pop()
+            idx = self.stack.pop()
+            v[idx.numerify()] = val.scalar_context()
         else:
             v = self.stack.pop().scalar_context()
         self.set_variable(name, v)
+
+    def perform_push_anon_list(self, length):
+        arry = Value([])
+        for i in range(0, length):
+            arry.push(self.stack.pop())
+        arry.reverse()
+        self.stack.append(arry)
 
     def perform_list_assign(self, name, length):
         arry = Value([])

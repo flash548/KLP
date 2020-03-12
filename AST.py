@@ -32,8 +32,17 @@ class ValueNode(AST):
         self._val = val
 
     def emit(self, vm):
-        vm.append_instruction(Instruction("PUSH CONST", [self._val]))
+        vm.append_instruction(Instruction("PUSH CONST", [ self._val ]))
+        
+class AnonListNode(AST):
 
+    def __init__(self, val):
+        self._arry = val
+
+    def emit(self, vm):
+        for i in self._arry:
+            i.emit(vm)
+        vm.append_instruction(Instruction("PUSH ANON LIST", [ len(self._arry) ]))
 
 class ReturnNode(AST):
 
@@ -203,7 +212,7 @@ class ListVarNode(AST):
 
     def emit(self, vm):    
         vm.append_instruction(Instruction("PUSH LIST VAR",
-            [self._name]))
+            [self._name, False]))
 
 class ListAssignNode(AST):
 
@@ -238,5 +247,5 @@ class ScalarAssignNode(AST):
         else:
             # an actual scalar value
             self._expr.emit(vm)
-        vm.append_instruction(Instruction(
-            "SCALAR ASSIGN", [self._name, True if self._index_expr != None else False ]))
+            vm.append_instruction(Instruction(
+            "SCALAR ASSIGN", [ self._name, True if self._index_expr != None else False ]))

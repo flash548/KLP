@@ -150,7 +150,11 @@ class Parser:
                 self.eat(TokenType.ASSIGN)                
                 return ListAssignNode(name, self.consume_list())
             else:
-                return ListVarNode(name)        
+                return ListVarNode(name)      
+        elif (token.type == TokenType.LBRACKET):
+            self.eat(TokenType.LBRACKET)
+            anon_list = self.consume_list(TokenType.RBRACKET)
+            return AnonListNode(anon_list)
         elif (token.type == TokenType.PLUS):
             self.eat(TokenType.PLUS)
             return UnOpNode(Value('+'), self.factor())
@@ -188,12 +192,15 @@ class Parser:
 
         raise Exception("Unknown token in factor(): " + str(token.value))
         
-    def consume_list(self):
+    def consume_list(self, ender=None):
         list_elems = []
-        end_token = TokenType.SEMICOLON
-        if (self.current_token.type == TokenType.LPAREN):
-            end_token = TokenType.RPAREN
-            self.eat(TokenType.LPAREN)
+        if ender == None:
+            end_token = TokenType.SEMICOLON
+            if (self.current_token.type == TokenType.LPAREN):
+                end_token = TokenType.RPAREN
+                self.eat(TokenType.LPAREN)
+        else:
+            end_token = ender
         while ((self.current_token.type != end_token) and
                 (self.current_token.type != TokenType.SEMICOLON)):
             list_elems.append(self.expression())

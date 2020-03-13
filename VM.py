@@ -5,7 +5,7 @@ class Instruction:
     def __init__(self, opcode, args):
         self.opcode = opcode
         if (not (isinstance(args, list))):
-            raise Exception("Instruction args must be a list!")
+            raise Exception("Instruction args must be a list! OPCODE: " + self.opcode)
         self.args = args
 
     def __str__(self):
@@ -55,8 +55,8 @@ class VM:
             else:
                 self.current_scope[name] = val
 
-        def get_current_address(self):
-            return len(self.pgm_stack)
+    def get_current_address(self):
+        return len(self.pgm_stack)
 
     def append_instruction(self, i):
         self.pgm_stack.append(i)
@@ -74,7 +74,7 @@ class VM:
     def dump_pgm_stack(self):
         print "PGM Stack:"
         for i in range(0, len(self.pgm_stack)):
-            print str(self.pgm_stack[i])
+            print str(i) + ": " + str(self.pgm_stack[i])
 
     def dump_stack(self):
         print "Stack Dump: (length: %i)" % len(self.stack)
@@ -93,7 +93,6 @@ class VM:
     def step(self):
         if self.pc < len(self.pgm_stack):
             self.execute(self.pgm_stack[self.pc])
-            self.pc += 1
             return True
         else:
             if len(self.pc_stack) != 0:
@@ -106,6 +105,8 @@ class VM:
             return False  # no more code to execute
 
     def execute(self, instr):
+        self.pc += 1 # incr to next instruction, unless it gets mod'd in here
+    
         if (instr.opcode == "POP"):
             self.stack.pop()
         elif (instr.opcode == "BINOP"):
@@ -123,7 +124,7 @@ class VM:
         elif (instr.opcode == "PUSH ANON LIST"):
             self.perform_push_anon_list(instr.args[0])
         elif (instr.opcode == "BZ"):
-            if (not self.stack.pop()):
+            if (not self.stack.pop().boolify()):
                 self.pc = int(instr.args[0])
         elif (instr.opcode == "JMP"):
             self.pc = int(instr.args[0])

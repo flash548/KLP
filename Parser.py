@@ -56,8 +56,8 @@ class Parser:
         elif self.current_token.type == TokenType.FUNCTION_DECLARE:
             return self.function_declare_statement()
         elif self.current_token.type == TokenType.IF: # TODO: unless
-            return self.cond_statement()
-        elif self.current_token.type == TokenType.WHILE: # TODO: continue
+            return self.if_statement()
+        elif self.current_token.type == TokenType.WHILE: # TODO: until AND continue
             return self.while_statement()
         elif self.current_token.type == TokenType.FOR:
             return self.for_statement()
@@ -72,7 +72,38 @@ class Parser:
                         str(self.lineNumber))            
     
     def if_statement(self):
-        pass
+        self.eat(TokenType.IF)
+        expr = self.expression()
+        self.eat(TokenType.LCURLY)
+        if_clause = []
+        else_if_conds = []
+        else_if_clauses = []
+        else_clause = []
+        while (self.current_token.type != TokenType.RCURLY):
+            if_clause.append(self.statement())
+            self.eat(TokenType.SEMICOLON)
+        self.eat(TokenType.RCURLY)
+        
+        if (self.current_token.type == TokenType.ELSIF):
+            while (self.current_token.type == TokenType.ELSIF):
+                self.eat(TokenType.ELSIF)
+                else_if_conds.append(self.expression())
+                self.eat(TokenType.LCURLY)
+                clauses = []
+                while (self.current_token.type != TokenType.RCURLY):
+                    clauses.append(self.statement())
+                    self.eat(TokenType.SEMICOLON)
+                else_if_clauses.append(clauses)
+                self.eat(TokenType.RCURLY)
+        
+        if (self.current_token.type == TokenType.ELSE):
+            self.eat(TokenType.ELSE)
+            self.eat(TokenType.LCURLY)
+            while (self.current_token.type != TokenType.RCURLY):
+                else_clause.append(self.statement())
+                self.eat(TokenType.SEMICOLON)
+            self.eat(TokenType.RCURLY)
+        return IfNode(expr, if_clause, else_if_conds, else_if_clauses, else_clause)
 
     def while_statement(self):
         pass

@@ -274,6 +274,15 @@ class Value(object):
     def str_ge(self, other):
         return Value(len(self.stringify()) >= len(other.stringify()))
         
+    def __and__(self, other):
+        return Value(self.numerify() & other.numerify())
+        
+    def __or__(self, other):
+        return Value(self.numerify() | other.numerify())
+        
+    def __xor__(self, other):
+        return Value(self.numerify() ^ other.numerify())
+        
     def push(self, v):
         if (self.type == "List"):
             self._val.append(v)

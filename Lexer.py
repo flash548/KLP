@@ -209,6 +209,14 @@ class Lexer:
             if (self.current_char == '@' and self.peek().isalnum()):
                 self.advance()
                 return Token(TokenType.LIST, Value('LIST'))
+                
+            if (self.current_char == '&'):
+                self.advance()
+                return Token(TokenType.AND, Value('&'))
+                
+            if (self.current_char == '|'):
+                self.advance()
+                return Token(TokenType.OR, Value('|'))
 
             if (self.current_char == '.'):
                 self.advance()

@@ -131,24 +131,24 @@ class IfNode(AST):
         jmp_addresses = []
         self._cond.emit(vm)
         branch_anchor = vm.get_current_address()
-        vm.append_instruction(Instruction("BZ", None))
+        vm.append_instruction(Instruction("BZ", [None]))
         for i in self._if_body:
             i.emit(vm)
         jmp_addresses.append(vm.get_current_address())
-        vm.append_instruction(Instruction("JMP", None))
+        vm.append_instruction(Instruction("JMP", [None]))
         if_clause_anchor = vm.get_current_address()
 
         # populate the BZ jump address
         vm.pgm_stack[branch_anchor] = Instruction("BZ", [if_clause_anchor])
         if len(self._else_if_conds) > 0:
-            for else_if_cond in self._else_if_conds:
-                else_if_cond.emit(vm)
+            for i in range(0, len(self._else_if_conds)):
+                self._else_if_conds[i].emit(vm)
                 else_if_anchor = vm.get_current_address()
-                vm.append_instruction(Instruction("BZ", None))
-                for j in else_if_cond:
+                vm.append_instruction(Instruction("BZ", [None]))
+                for j in self._else_if_bodies[i]:
                     j.emit(vm)
                 jmp_addresses.append(vm.get_current_address())
-                vm.append_instruction(Instruction("JMP", None))
+                vm.append_instruction(Instruction("JMP", [None]))
                 else_if_clause_anchor = vm.get_current_address()
                 vm.pgm_stack[else_if_anchor] = Instruction(
                     "BZ", [else_if_clause_anchor])

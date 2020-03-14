@@ -174,7 +174,7 @@ class WhileNode(AST):
         address_anchor = vm.get_current_address()
         self._expr.emit(vm)
         branch_anchor = vm.get_current_address()
-        vm.append_instruction(Instruction("BZ", None))
+        vm.append_instruction(Instruction("BZ", [ None ]))
         for i in self._body:
             i.emit(vm)
         vm.append_instruction(Instruction("JMP", [address_anchor]))

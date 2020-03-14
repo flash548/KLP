@@ -106,7 +106,15 @@ class Parser:
         return IfNode(expr, if_clause, else_if_conds, else_if_clauses, else_clause)
 
     def while_statement(self):
-        pass
+        self.eat(TokenType.WHILE)
+        expr = self.expression()
+        self.eat(TokenType.LCURLY)
+        while_clause = []
+        while (self.current_token.type != TokenType.RCURLY):
+            while_clause.append(self.statement())
+            self.eat(TokenType.SEMICOLON)
+        self.eat(TokenType.RCURLY)
+        return WhileNode(expr, while_clause)
 
     def function_declare_statement(self):
         pass

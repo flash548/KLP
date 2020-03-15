@@ -122,8 +122,6 @@ class Lexer:
             return Token(TokenType.UNLESS, Value('unless'))
         elif (name == "for"):
             return Token(TokenType.FOR, Value('for'))
-        elif (name == "next"):
-            return Token(TokenType.NEXT, Value('next'))
         elif (name == "last"):
             return Token(TokenType.LAST, Value('last'))
         elif (name == "continue"):
@@ -178,7 +176,12 @@ class Lexer:
                       self.peek() == 'e'):
                     self.advance()
                     self.advance()
-                    return Token(TokenType.STR_NEQ, Value('ne'))
+                    if self.peek().isspace():
+                        return Token(TokenType.STR_NEQ, Value('ne'))
+                    elif self.current_char == 'x' and self.peek() == 't':
+                        self.advance()
+                        self.advance()
+                        return Token(TokenType.NEXT, Value('next'))
                 elif (self.current_char == 'l' and
                       self.peek() == 't'):
                     self.advance()
@@ -213,6 +216,10 @@ class Lexer:
             if (self.current_char == '&'):
                 self.advance()
                 return Token(TokenType.AND, Value('&'))
+                
+            if (self.current_char == '!'):
+                self.advance()
+                return Token(TokenType.NOT, Value('!'))
                 
             if (self.current_char == '|'):
                 self.advance()

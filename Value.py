@@ -205,7 +205,7 @@ class Value(object):
 
     def __abs__(self):
         return Value(abs(self.numerify()))
-
+        
     def __neg__(self):
         if (self.type == "List"):
             return -(self._val[-1].numerify())

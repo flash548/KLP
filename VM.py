@@ -1,5 +1,5 @@
 from Value import *
-
+import sys
 
 class Instruction:
     def __init__(self, opcode, args):
@@ -109,6 +109,8 @@ class VM:
     
         if (instr.opcode == "POP"):
             self.stack.pop()
+        elif (instr.opcode == "LABEL"):
+            pass
         elif (instr.opcode == "BINOP"):
             self.perform_op(str(instr.args[0]))
         elif (instr.opcode == "UNOP"):
@@ -123,6 +125,10 @@ class VM:
             self.perform_push_var(str(instr.args[0]), instr.args[1], 'list')
         elif (instr.opcode == "PUSH ANON LIST"):
             self.perform_push_anon_list(instr.args[0])
+        elif (instr.opcode == "GOTO END LOOP"):
+            self.go_to_label("END_LOOP")
+        elif (instr.opcode == "GOTO CONTINUE LOOP"):
+            self.go_to_label("CONTINUE_LOOP")
         elif (instr.opcode == "BZ"):
             if (not self.stack.pop().boolify()):
                 self.pc = int(instr.args[0])
@@ -142,6 +148,13 @@ class VM:
             self.perform_return(instr.args[0])
         else:
             raise Exception("Unknown Instruction: " + instr.opcode)
+            
+    def go_to_label(self, label):
+        for i in range(self.pc, len(self.pgm_stack)):
+            if self.pgm_stack[i].opcode == "LABEL" and self.pgm_stack[i].args[0] == label:
+                self.pc = i
+                return
+        raise Exception("Could not find label: " + label)
 
     def perform_op(self, op):
         _right = self.stack.pop()
@@ -204,7 +217,7 @@ class VM:
         elif (op == '-'):
             self.stack.append(-_left)
         elif (op == '!'):
-            self.stack.append(not _left)
+            self.stack.append(Value(not _left.boolify()))
         else:
             raise Exception("Invalid Unop: " + op)
 
@@ -246,7 +259,7 @@ class VM:
             args.append(self.stack.pop())            
         
         if (name == "print"):
-            print str(args[0])
+            sys.stdout.write(str(args[0]))
         else:
             raise Exception("Undefined built-in: " + name)
 

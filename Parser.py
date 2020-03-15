@@ -7,6 +7,8 @@ class Parser:
         self.lineNumber = 1
         self.lex = lexer
         self.current_token = self.lex.get_next_token()
+        self.statement_modifier_tokens = [ TokenType.IF, TokenType.UNLESS,
+            TokenType.UNTIL, TokenType.WHILE ];
 
     def error(self):
         raise Exception("Invalid syntax on line: " + str(self.lineNumber))
@@ -55,9 +57,9 @@ class Parser:
             return AST()
         elif self.current_token.type == TokenType.FUNCTION_DECLARE:
             return self.function_declare_statement()
-        elif self.current_token.type == TokenType.IF: # TODO: unless
+        elif self.current_token.type in [TokenType.IF, TokenType.UNLESS]:
             return self.if_statement()
-        elif self.current_token.type == TokenType.WHILE: # TODO: until AND continue
+        elif self.current_token.type in [TokenType.WHILE, TokenType.UNTIL]:
             return self.while_statement()
         elif self.current_token.type == TokenType.FOR:
             return self.for_statement()
@@ -65,14 +67,45 @@ class Parser:
             self.eat(TokenType.LCURLY)
             return self.statement_list()
             self.eat(TokenType.RCURLY)
-        else: # TODO: if/unless 
-            return self.expression()
+        elif self.current_token.type == TokenType.LAST:
+            self.eat(TokenType.LAST)
+            return self.check_for_conditional(LastNode())
+        elif self.current_token.type == TokenType.NEXT:
+            self.eat(TokenType.NEXT)
+            return self.check_for_conditional(NextNode())
+        else:
+            return self.check_for_conditional(self.expression())
 
         raise Exception("Invalid statement, line number: " +
-                        str(self.lineNumber))            
+                        str(self.lineNumber))                            
+    
+    def check_for_conditional(self, node):
+        if (self.current_token.type == TokenType.IF):
+            self.eat(TokenType.IF)
+            expr = self.expression();
+            return IfNode(expr, [ node ], [], [], [], False)
+        elif (self.current_token.type == TokenType.UNLESS):
+            self.eat(TokenType.UNLESS)
+            expr = self.expression();
+            return IfNode(expr, [ node ], [], [], [], True)
+        elif (self.current_token.type == TokenType.WHILE):
+            self.eat(TokenType.WHILE)
+            expr = self.expression();
+            return WhileNode(expr, [ node ], [], False)
+        elif (self.current_token.type == TokenType.UNTIL):
+            self.eat(TokenType.UNTIL)
+            expr = self.expression();
+            return WhileNode(expr, [ node ], [], True)
+        else:
+            return node
     
     def if_statement(self):
-        self.eat(TokenType.IF)
+        if (self.current_token.type == TokenType.UNLESS):
+            self.eat(TokenType.UNLESS)
+            invert_logic = True
+        else:
+            self.eat(TokenType.IF)
+            invert_logic = False
         expr = self.expression()
         self.eat(TokenType.LCURLY)
         if_clause = []
@@ -81,7 +114,7 @@ class Parser:
         else_clause = []
         while (self.current_token.type != TokenType.RCURLY):
             if_clause.append(self.statement())
-            self.eat(TokenType.SEMICOLON)
+            self.eat_end_of_statement()
         self.eat(TokenType.RCURLY)
         
         if (self.current_token.type == TokenType.ELSIF):
@@ -92,7 +125,7 @@ class Parser:
                 clauses = []
                 while (self.current_token.type != TokenType.RCURLY):
                     clauses.append(self.statement())
-                    self.eat(TokenType.SEMICOLON)
+                    self.eat_end_of_statement()
                 else_if_clauses.append(clauses)
                 self.eat(TokenType.RCURLY)
         
@@ -101,20 +134,33 @@ class Parser:
             self.eat(TokenType.LCURLY)
             while (self.current_token.type != TokenType.RCURLY):
                 else_clause.append(self.statement())
-                self.eat(TokenType.SEMICOLON)
+                self.eat_end_of_statement()
             self.eat(TokenType.RCURLY)
-        return IfNode(expr, if_clause, else_if_conds, else_if_clauses, else_clause)
+        return IfNode(expr, if_clause, else_if_conds, else_if_clauses, else_clause, invert_logic)
 
     def while_statement(self):
-        self.eat(TokenType.WHILE)
+        if (self.current_token.type == TokenType.UNTIL):
+            self.eat(TokenType.UNTIL)
+            invert_logic = True
+        else:
+            self.eat(TokenType.WHILE)
+            invert_logic = False
         expr = self.expression()
         self.eat(TokenType.LCURLY)
         while_clause = []
+        continue_clause = []
         while (self.current_token.type != TokenType.RCURLY):
             while_clause.append(self.statement())
-            self.eat(TokenType.SEMICOLON)
+            self.eat_end_of_statement()
         self.eat(TokenType.RCURLY)
-        return WhileNode(expr, while_clause)
+        if (self.current_token.type == TokenType.CONTINUE):
+            self.eat(TokenType.CONTINUE)
+            self.eat(TokenType.LCURLY)
+            while (self.current_token.type != TokenType.RCURLY):
+                continue_clause.append(self.statement())
+                self.eat_end_of_statement()
+            self.eat(TokenType.RCURLY)
+        return WhileNode(expr, while_clause, continue_clause, invert_logic)
 
     def function_declare_statement(self):
         pass
@@ -241,9 +287,11 @@ class Parser:
         else:
             end_token = ender
         while ((self.current_token.type != end_token) and
-                (self.current_token.type != TokenType.SEMICOLON)):
+                (self.current_token.type != TokenType.SEMICOLON) and
+                (self.current_token.type not in self.statement_modifier_tokens)):
             list_elems.append(self.expression())
             if (self.current_token.type == TokenType.COMMA):
                 self.eat(TokenType.COMMA)
-        self.eat(end_token)
+        if (self.current_token.type not in self.statement_modifier_tokens):
+            self.eat(end_token)
         return list_elems

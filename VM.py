@@ -129,6 +129,9 @@ class VM:
             self.go_to_label("END_LOOP")
         elif (instr.opcode == "GOTO CONTINUE LOOP"):
             self.go_to_label("CONTINUE_LOOP")
+        elif (instr.opcode == "BNZ"):
+            if (self.stack.pop().boolify()):
+                self.pc = int(instr.args[0])
         elif (instr.opcode == "BZ"):
             if (not self.stack.pop().boolify()):
                 self.pc = int(instr.args[0])
@@ -260,6 +263,7 @@ class VM:
         
         if (name == "print"):
             sys.stdout.write(str(args[0]))
+            self.stack.append(Value(1))
         else:
             raise Exception("Undefined built-in: " + name)
 

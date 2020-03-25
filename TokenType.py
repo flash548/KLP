@@ -21,6 +21,8 @@ class TokenType:
     NOT = "NOT"
     EOF = "EOF"
     AND = "AND"
+    LOGAND = "LOGICAL AND"
+    LOGOR = "LOGICAL OR"
     OR = "OR"
     XOR = "XOR"
     MOD = "MOD"

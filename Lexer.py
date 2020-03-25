@@ -214,6 +214,10 @@ class Lexer:
                 return Token(TokenType.LIST, Value('LIST'))
                 
             if (self.current_char == '&'):
+                if (self.peek() == '&'):
+                    self.advance()
+                    self.advance()
+                    return Token(TokenType.LOGAND, Value('&&'))
                 self.advance()
                 return Token(TokenType.AND, Value('&'))
                 
@@ -222,6 +226,10 @@ class Lexer:
                 return Token(TokenType.NOT, Value('!'))
                 
             if (self.current_char == '|'):
+                if (self.peek() == '|'):
+                    self.advance()
+                    self.advance()
+                    return Token(TokenType.LOGOR, Value('||'))
                 self.advance()
                 return Token(TokenType.OR, Value('|'))
 

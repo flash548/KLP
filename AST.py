@@ -56,6 +56,28 @@ class ReturnNode(AST):
         else:
             vm.AppendInstruction(Instruction("RET", [False]))
 
+class LogicalOpNode(AST):
+
+    def __init__(self, op, left, right):
+        self._op = str(op)
+        self._left = left
+        self._right = right
+
+    def emit(self, vm):
+        if (self._op == '&&'):
+            self._left.emit(vm)
+            branch_anchor = vm.get_current_address()
+            vm.append_instruction(Instruction("BZ", [None])) # fill this in later
+            self._right.emit(vm)
+            location = vm.get_current_address()
+            vm.pgm_stack[branch_anchor].args = [ location ]
+        else:
+            self._left.emit(vm)
+            branch_anchor = vm.get_current_address()
+            vm.append_instruction(Instruction("BNZ", [None])) # fill this in later
+            self._right.emit(vm)
+            location = vm.get_current_address()
+            vm.pgm_stack[branch_anchor].args = [ location ]
 
 class BinOpNode(AST):
 

@@ -186,6 +186,8 @@ class Parser:
                 TokenType.MUL,
                 TokenType.DIV,
                 TokenType.POW,
+                TokenType.LOGAND,
+                TokenType.LOGOR,
                 TokenType.AND,
                 TokenType.OR,
                 TokenType.XOR,
@@ -204,7 +206,10 @@ class Parser:
 
             token = self.current_token
             self.eat(self.current_token.type)
-            result = BinOpNode(result, token.value, self.factor())
+            if token.type in (TokenType.LOGAND, TokenType.LOGOR):
+                result = LogicalOpNode(token.value, result, self.factor())
+            else:
+                result = BinOpNode(result, token.value, self.factor())
 
         return result
 

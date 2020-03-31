@@ -1,4 +1,4 @@
-Perl on Python for Pythonista (3P) is an attempt to implement very basic functionality of core Perl using Python 2.7.  The target is Pythonista on iOS - I was thinking mainly for use on StaSh for Pythonista.  I wanted Perl to be able to do some basic text analysis and processing.  Yes you can use Python to do that, but I'm used to Perl and thought this might be a fun project (maybe).  The level of functionality here would be akin to something of Perl 1.0 at this point ...and its a slow work in progress.  
+Perl on Python for Pythonista (3P) is an attempt to implement VERY BASIC functionality of core Perl (starting from Perl 1)  using Python 2.7.  The target is Pythonista on iOS.  I wanted Perl to be able to do some basic text analysis and processing.  Yes you can use Python to do that, but I'm used to Perl and thought this might be a fun project (maybe).  The level of functionality here would be akin to something of Perl 1.0 at this point ...and its a slow work in progress.  
 
 This is also another attempt to learn to write a full blown lexer/parser/compiler.  There's a great tutorial out there - https://ruslanspivak.com/lsbasi-part1/ that got me started on this and other language writing projects. 
 
@@ -15,6 +15,6 @@ VM.py - Virtual Machine.  Executes bytecodes and manages the expression stack an
 
 TokenType.py - Defines all the tokens we're working with
 
-main.py - A simple driver app to run some language statements
+main.py - A simple driver script to run some language statements
 
 Value.py - Everything we parse is a 'value'...everything on the stack is a 'value. A Value is any object, but can be interpreted differently depending on the context - just like Perl's values.

@@ -80,6 +80,8 @@ class Parser:
                         str(self.lineNumber))                            
     
     def check_for_conditional(self, node):
+        """ Checks for a statement modifier (if, unless, while, until)... """
+        
         if (self.current_token.type == TokenType.IF):
             self.eat(TokenType.IF)
             expr = self.expression();
@@ -265,6 +267,9 @@ class Parser:
                 # its a BAREWORD, croak for now
                 print "CROAK!"
                 return AST()
+        elif (token.type == TokenType.INTERP_STR):
+            self.eat(TokenType.INTERP_STR)
+            return InterpolatedValueNode(token.value)
         elif (token.type == TokenType.STR):
             self.eat(TokenType.STR)
             return ValueNode(token.value)

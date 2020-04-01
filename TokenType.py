@@ -34,6 +34,7 @@ class TokenType:
     ASSIGN = "ASSIGN"
     EQ = "EQ"
     STR = "STR"
+    INTERP_STR = "INTERP_STR"
     STR_CONCAT = "STR_CONCAT"
     LSHIFT = "LSHIFT"
     RSHIFT = "RSHIFT"

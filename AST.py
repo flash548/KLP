@@ -26,6 +26,14 @@ class RootNode(AST):
             i.emit(vm)
 
 
+class InterpolatedValueNode(AST):
+
+    def __init__(self, val):
+        self._val = val
+        
+    def emit(self, vm):
+        vm.append_instruction(Instruction("PUSH INTERP CONST", [ self._val ]))
+
 class ValueNode(AST):
 
     def __init__(self, val):
@@ -122,8 +130,7 @@ class BuiltInFunctionNode(AST):
     def emit(self, vm):
         for i in self._args:
             i.emit(vm)
-        vm.append_instruction(Instruction(
-            "CALL", [self._name, len(self._args)]))
+        vm.append_instruction(Instruction("CALL", [self._name, len(self._args)]))
 
 class IndexNode(AST):
 

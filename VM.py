@@ -1,4 +1,5 @@
 from Value import *
+from DataStack import DataStack
 import sys
 
 class Instruction:
@@ -20,7 +21,7 @@ class VM:
         self.pgm_stack = []
         self.pgm_stack_frames = []
         self.pgm_frames = {}
-        self.stack = []
+        self.stack = DataStack(100)
         self.pc_stack = []
         self.pc = 0
         self.current_scope = {}  # place where we store variables
@@ -31,11 +32,11 @@ class VM:
             return self.current_scope[name]
 
         if len(self.scope_stack) > 0:
-            for scp in self.scope_stack:
-                if name in scp:
-                    return scp[name]
+            for scope in self.scope_stack:
+                if name in scope:
+                    return scope[name]
 
-        return Value(None)  # if we get here, autovivify
+        return Value(None)  # if we get here, autovivify in perl parlance...
 
     def var_exists(self, name):
         try:
@@ -72,20 +73,26 @@ class VM:
         self.pgm_frames[name] = self.pgm_stack
 
     def dump_pgm_stack(self):
+        """ Dumps the current program stack to STDOUT """
+        
         print "PGM Stack:"
         for i in range(0, len(self.pgm_stack)):
             print str(i) + ": " + str(self.pgm_stack[i])
 
     def dump_stack(self):
+        """ Dumps the data stack to STDOUT for debugging """
+        
         print "Stack Dump: (length: %i)" % len(self.stack)
         for i in range(0, len(self.stack)):
             print str(self.stack[i])
             
     def dump_current_scope(self):
+        """ Dumps the variables in the current scope to STDOUT """
+        
         print "Current Scope Dump:"
         for i in self.current_scope:
             print i + ": " + str(self.current_scope[i])
-
+                
     def run(self):
         while self.step():
             pass
@@ -96,7 +103,7 @@ class VM:
             return True
         else:
             if len(self.pc_stack) != 0:
-                self.stack.append(Value(True))
+                self.stack.push(Value(True))
                 self.pgm_stack = self.pgm_stack_frames.pop()
                 self.pc = self.pc_stack.pop()
                 self.current_scope = self.scope_stack.pop()
@@ -116,7 +123,9 @@ class VM:
         elif (instr.opcode == "UNOP"):
             self.perform_unop(str(instr.args[0]))
         elif (instr.opcode == "PUSH CONST"):
-            self.stack.append(instr.args[0])
+            self.stack.push(instr.args[0])
+        elif (instr.opcode == "PUSH INTERP CONST"):
+            self.perform_interpolated_push(instr.args[0])
         elif (instr.opcode == "INDEX VAR"):
             self.perform_var_index(args[0])
         elif (instr.opcode == "PUSH SCALAR VAR"):
@@ -164,51 +173,51 @@ class VM:
         _left = self.stack.pop()
 
         if (op == '+'):
-            self.stack.append(_left + _right)
+            self.stack.push(_left + _right)
         elif (op == '-'):
-            self.stack.append(_left - _right)
+            self.stack.push(_left - _right)
         elif (op == '*'):
-            self.stack.append(_left * _right)
+            self.stack.push(_left * _right)
         elif (op == '/'):
-            self.stack.append(_left / _right)
+            self.stack.push(_left / _right)
         elif (op == '^'):
-            self.stack.append(_left ^ _right)
+            self.stack.push(_left ^ _right)
         elif (op == '.'):
-            self.stack.append(_left.str_concat(_right))
+            self.stack.push(_left.str_concat(_right))
         elif (op == '%'):
-            self.stack.append(_left % _right)
+            self.stack.push(_left % _right)
         elif (op == 'eq'):
-            self.stack.append(_left.str_eq(_right))
+            self.stack.push(_left.str_eq(_right))
         elif (op == 'ne'):
-            self.stack.append(_left.str_ne(_right))
+            self.stack.push(_left.str_ne(_right))
         elif (op == 'lt'):
-            self.stack.append(_left.str_lt(_right))
+            self.stack.push(_left.str_lt(_right))
         elif (op == 'le'):
-            self.stack.append(_left.str_le(_right))
+            self.stack.push(_left.str_le(_right))
         elif (op == 'gt'):
-            self.stack.append(_left.str_gt(_right))
+            self.stack.push(_left.str_gt(_right))
         elif (op == 'ge'):
-            self.stack.append(_left.str_ge(_right))
+            self.stack.push(_left.str_ge(_right))
         elif (op == '=='):
-            self.stack.append(_left == _right)
+            self.stack.push(_left == _right)
         elif (op == '!='):
-            self.stack.append(_left != _right)
+            self.stack.push(_left != _right)
         elif (op == '<'):
-            self.stack.append(_left < _right)
+            self.stack.push(_left < _right)
         elif (op == '<='):
-            self.stack.append(_left <= _right)
+            self.stack.push(_left <= _right)
         elif (op == '>'):
-            self.stack.append(_left > _right)
+            self.stack.push(_left > _right)
         elif (op == '>='):
-            self.stack.append(_left >= _right)
+            self.stack.push(_left >= _right)
         elif (op == '&'):
-            self.stack.append(_left & _right)
+            self.stack.push(_left & _right)
         elif (op == '|'):
-            self.stack.append(_left | _right)
+            self.stack.push(_left | _right)
         elif (op == '<<'):
-            self.stack.append(_left << _right)
+            self.stack.push(_left << _right)
         elif (op == '>>'):
-            self.stack.append(_left >> _right)
+            self.stack.push(_left >> _right)
         else:
             raise Exception("Invalid operation: " + op)
 
@@ -216,18 +225,18 @@ class VM:
         _left = self.stack.pop()
 
         if (op == '+'):
-            self.stack.append(+_left)
+            self.stack.push(+_left)
         elif (op == '-'):
-            self.stack.append(-_left)
+            self.stack.push(-_left)
         elif (op == '!'):
-            self.stack.append(Value(not _left.boolify()))
+            self.stack.push(Value(not _left.boolify()))
         else:
             raise Exception("Invalid Unop: " + op)
 
     def perform_var_index(self):
         _index = self.stack.pop()
         _left = self.stack.pop()
-        self.stack.append(_left[_index].scalar_context())
+        self.stack.push(_left[_index].scalar_context())
 
     # name - variable name
     # index_expr - T/F if we're indexing this variable
@@ -237,11 +246,64 @@ class VM:
         if (index_expr == True):
             v = v[int(self.stack.pop())]    
         if (context == 'scalar'):
-            self.stack.append(v.scalar_context())
+            self.stack.push(v.scalar_context())
         elif (context == 'list'):
-            self.stack.append(v.list_context())
+            self.stack.push(v.list_context())
         else:
             raise Exception("Unknown context!")
+            
+    def perform_interpolated_push(self, val):
+        """ Interpolate this string before pushing as a const """
+        
+        string_const = str(val)
+        vars = {}
+        # look for sigils and get varnames
+        i = 0
+        in_curly = False
+        in_var = False
+        escaped = False
+        varname = ""
+        var_to_replace = ""
+        while i < len(string_const):
+            if (string_const[i] in ('$', '@', '%') and not escaped):
+                in_var = True
+                var_to_replace += string_const[i]
+            elif (string_const[i] == '{' and in_var):
+                in_curly = True
+            elif (string_const[i] == '}' and in_curly):
+                vars[var_to_replace] = varname
+                varname = ""
+                var_to_replace = ""
+                in_var = False
+                in_curly = False
+            elif (string_const[i].isspace() and in_var and in_curly):
+                raise Exception("Invalid variable string: " + varname)
+            elif (string_const[i].isspace() and in_var):
+                vars[var_to_replace] = varname
+                varname = ""
+                var_to_replace = ""
+                in_var = False
+            elif (in_var):
+                var_to_replace += string_const[i]
+                varname += string_const[i]
+
+            i += 1
+    
+        # if we get here and we're 'in_curly' = True then syntax errpr
+        if in_curly:
+            raise Exception("Invalid variable string in string: " + varname)
+        
+        if in_var:
+            vars[var_to_replace] = varname
+            
+        # now replace all the vars with their looked up values
+        #  these resolves will be in scalar context as a string
+        for var in vars:
+            v = self.get_variable(vars[var])
+            string_const = string_const.replace(var, str(v.scalar_context()))
+                
+        self.stack.push(Value(string_const))
+        
 
     def perform_call_user_func(self, name):
         if (name in self.pgm_frames):
@@ -263,7 +325,7 @@ class VM:
         
         if (name == "print"):
             sys.stdout.write(str(args[0]))
-            self.stack.append(Value(1))
+            self.stack.push(Value(1))
         else:
             raise Exception("Undefined built-in: " + name)
 
@@ -282,7 +344,7 @@ class VM:
         for i in range(0, length):
             arry.push(self.stack.pop())
         arry.reverse()
-        self.stack.append(arry)
+        self.stack.push(arry)
 
     def perform_list_assign(self, name, length):
         arry = Value([])

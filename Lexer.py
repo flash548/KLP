@@ -63,6 +63,8 @@ class Lexer:
         return Token(TokenType.INTEGER, Value(int(result, 16)))
 
     def parse_string(self):
+        """ Double quoted string """
+        
         result = ""
         while (self.current_char != '\0'):
             if (self.current_char == '"'):
@@ -88,9 +90,11 @@ class Lexer:
             self.advance()
 
         self.advance()
-        return Token(TokenType.STR, Value(result))
+        return Token(TokenType.INTERP_STR, Value(result))
 
     def parse_literal_string(self):
+        """ Single quoted string - no interpolation """
+        
         result = ""
         while (self.current_char != '\0'):
             if (self.current_char == "'"):

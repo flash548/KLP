@@ -261,6 +261,9 @@ class Value(object):
 
     def str_eq(self, other):
         return Value(self.stringify() == other.stringify())
+    
+    def str_ne(self, other):
+        return Value(self.stringify() != other.stringify())
 
     def str_lt(self, other):
         return Value(len(self.stringify()) < len(other.stringify()))

@@ -184,6 +184,7 @@ class Parser:
 
     def term(self):
         result = self.factor()
+        
         while self.current_token.type in (
                 TokenType.MUL,
                 TokenType.DIV,
@@ -200,6 +201,7 @@ class Parser:
                 TokenType.EQ,
                 TokenType.NEQ,
                 TokenType.STR_EQ,
+                TokenType.STR_NEQ,
                 TokenType.STR_LT,
                 TokenType.STR_LE,
                 TokenType.STR_GT,
@@ -284,10 +286,16 @@ class Parser:
             result = self.expression()
             self.eat(TokenType.RPAREN)
             return result
-
+            
         raise Exception("Unknown token in factor(): " + str(token.value))
         
     def consume_list(self, ender=None):
+        """ This is kinda hacky... it attempts to read a list, whether for
+            array purposes or for function arguments.  List can start with
+            an LPAREN or not.  If not, then end of list is either an RPAREN,
+            SEMICOLON or a statement modifier (if, until, unless, while...)
+        """
+        
         list_elems = []
         if ender == None:
             end_token = TokenType.SEMICOLON
@@ -298,10 +306,12 @@ class Parser:
             end_token = ender
         while ((self.current_token.type != end_token) and
                 (self.current_token.type != TokenType.SEMICOLON) and
+                (self.current_token.type != TokenType.RPAREN) and
                 (self.current_token.type not in self.statement_modifier_tokens)):
             list_elems.append(self.expression())
             if (self.current_token.type == TokenType.COMMA):
                 self.eat(TokenType.COMMA)
         if (self.current_token.type not in self.statement_modifier_tokens):
-            self.eat(end_token)
+            if (self.current_token.type == end_token):
+                self.eat(end_token)
         return list_elems

@@ -180,7 +180,7 @@ class Lexer:
                       self.peek() == 'e'):
                     self.advance()
                     self.advance()
-                    if self.peek().isspace():
+                    if self.current_char.isspace():
                         return Token(TokenType.STR_NEQ, Value('ne'))
                     elif self.current_char == 'x' and self.peek() == 't':
                         self.advance()
@@ -227,6 +227,9 @@ class Lexer:
                 
             if (self.current_char == '!'):
                 self.advance()
+                if (self.current_char == '='):
+                    self.advance()
+                    return Token(TokenType.NEQ, Value('!='))
                 return Token(TokenType.NOT, Value('!'))
                 
             if (self.current_char == '|'):

@@ -157,8 +157,13 @@ class Value(object):
                     self._val.append(Value(None))
        
             self._val[key] = v
-        else:
-            pass
+        elif (self.type == "Scalar"):
+            if key >= len(self._val):                
+                end = key-len(self._val);
+                for i in range(0, end+1):
+                    self._val.append(Value(None))
+            self._val[key] = v		
+        print self.type
             
     def __getitem__(self, key):
         if (self.type == "List"):

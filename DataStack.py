@@ -9,7 +9,7 @@ class DataStack():
     def push(self, obj):
         self._stack.append(obj)
         if len(self._stack) > self._maxsize:
-            self._stack = self.stack[1:] # dont let the stack exceed maxsize
+            self._stack = self._stack[1:] # dont let the stack exceed maxsize
     
     def __len__(self):
         return len(self._stack)

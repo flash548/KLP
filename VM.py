@@ -36,7 +36,7 @@ class VM:
                 if name in scope:
                     return scope[name]
 
-        return Value(None)  # if we get here, autovivify in perl parlance...
+        return Value(0)  # if we get here, autovivify in perl parlance...
 
     def var_exists(self, name):
         try:

@@ -143,7 +143,7 @@ class Parser:
     def for_statement(self):
         self.eat(TokenType.FOR)
         self.eat(TokenType.LPAREN)
-        inital = self.expression()
+        initial = self.expression()
         self.eat(TokenType.SEMICOLON)
         cond = self.expression()
         self.eat(TokenType.SEMICOLON)
@@ -257,6 +257,12 @@ class Parser:
             elif (self.current_token.type == TokenType.DECR):
                 self.eat(TokenType.DECR)
                 return ScalarIncrDecrNode(name, self.expression(), '-=')
+            elif (self.current_token.type == TokenType.PLUSPLUS):
+                self.eat(TokenType.PLUSPLUS)
+                return ScalarIncrDecrNode(name, None, 'post++')
+            elif (self.current_token.type == TokenType.MINUSMINUS):
+                self.eat(TokenType.MINUSMINUS)
+                return ScalarIncrDecrNode(name, None, 'post--')
             else:
                 return ScalarVarNode(name, index_expr)
         elif (token.type == TokenType.LIST):

@@ -205,10 +205,10 @@ class ForNode(AST):
         self._body = body
         
     def emit(self, vm):
-        self._inital.emit(vm)
+        self._initial.emit(vm)
         address_anchor = vm.get_current_address()
-        branch_anchor = vm.get_current_address()
         self._cond.emit(vm)
+        branch_anchor = vm.get_current_address()
         vm.append_instruction(Instruction("BZ", [ None ]))
         for i in self._body:
             i.emit(vm)
@@ -323,6 +323,16 @@ class ScalarIncrDecrNode(AST):
             vm.append_instruction(Instruction("PUSH CONST", [ Value(1) ]))
             vm.append_instruction(Instruction("DECR SCALAR", [ self._name ]))
             vm.append_instruction(Instruction("PUSH SCALAR VAR", [ self._name, False ]))
+        elif (self._op == 'post++'):
+            #vm.append_instruction(Instruction("PUSH SCALAR VAR", [ self._name, False ]))
+            vm.append_instruction(Instruction("PUSH SCALAR VAR", [ self._name, False ]))
+            vm.append_instruction(Instruction("PUSH CONST", [ Value(1) ]))
+            vm.append_instruction(Instruction("INCR SCALAR", [ self._name ]))
+        elif (self._op == 'post--'):
+            vm.append_instruction(Instruction("PUSH SCALAR VAR", [ self._name, False ]))
+            vm.append_instruction(Instruction("PUSH CONST", [ Value(1) ]))
+            vm.append_instruction(Instruction("DECR SCALAR", [ self._name ]))
+            
 
 class ScalarAssignNode(AST):
 

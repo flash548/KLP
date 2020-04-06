@@ -140,6 +140,23 @@ class Parser:
             self.eat(TokenType.RCURLY)
         return IfNode(expr, if_clause, else_if_conds, else_if_clauses, else_clause, invert_logic)
 
+    def for_statement(self):
+        self.eat(TokenType.FOR)
+        self.eat(TokenType.LPAREN)
+        inital = self.expression()
+        self.eat(TokenType.SEMICOLON)
+        cond = self.expression()
+        self.eat(TokenType.SEMICOLON)
+        end = self.expression()
+        self.eat(TokenType.RPAREN)
+        self.eat(TokenType.LCURLY)
+        body = []
+        while (self.current_token.type != TokenType.RCURLY):
+            body.append(self.statement())
+            self.eat_end_of_statement()
+        self.eat(TokenType.RCURLY)
+        return ForNode(initial, cond, end, body)
+
     def while_statement(self):
         if (self.current_token.type == TokenType.UNTIL):
             self.eat(TokenType.UNTIL)
@@ -234,6 +251,12 @@ class Parser:
                     return ScalarAssignNode(name, self.consume_list(), index_expr)
                 else:
                     return ScalarAssignNode(name, self.expression(), index_expr)
+            elif (self.current_token.type == TokenType.INCR):
+                self.eat(TokenType.INCR)
+                return ScalarIncrDecrNode(name, self.expression(), '+=')
+            elif (self.current_token.type == TokenType.DECR):
+                self.eat(TokenType.DECR)
+                return ScalarIncrDecrNode(name, self.expression(), '-=')
             else:
                 return ScalarVarNode(name, index_expr)
         elif (token.type == TokenType.LIST):
@@ -258,6 +281,22 @@ class Parser:
         elif (token.type == TokenType.NOT):
             self.eat(TokenType.NOT)
             return UnOpNode(Value('!'), self.factor())
+        elif (token.type == TokenType.PLUSPLUS):
+            # prefix incr
+            self.eat(TokenType.PLUSPLUS)
+            # we can assume next token is ID for the variable name
+            self.eat(TokenType.SCALAR)
+            name = str(self.current_token.value)
+            self.eat(TokenType.ID)
+            return ScalarIncrDecrNode(name, None, '++')
+        elif (token.type == TokenType.MINUSMINUS):
+            # prefix decr
+            self.eat(TokenType.MINUSMINUS)
+            # we can assume next token is ID for the variable name
+            self.eat(TokenType.SCALAR)
+            name = str(self.current_token.value)
+            self.eat(TokenType.ID)
+            return ScalarIncrDecrNode(name, None, '--')
         elif (token.type == TokenType.ID):
             name = token.value
             self.eat(TokenType.ID)

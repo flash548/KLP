@@ -298,6 +298,9 @@ class Lexer:
 
             if (self.current_char == '+'):
                 self.advance()
+                if (self.current_char == '+'):
+                    self.advance()
+                    return Token(TokenType.PLUSPLUS, Value('++'))
                 if (self.current_char == '='):
                     self.advance()
                     return Token(TokenType.INCR, Value("+="))
@@ -305,6 +308,9 @@ class Lexer:
 
             if (self.current_char == '-'):
                 self.advance()
+                if (self.current_char == '-'):
+                    self.advance()
+                    return Token(TokenType.MINUSMINUS, Value('--'))
                 if (self.current_char == '='):
                     self.advance()
                     return Token(TokenType.DECR, Value("-="))

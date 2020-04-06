@@ -196,6 +196,28 @@ class IfNode(AST):
         for i in jmp_addresses:
             vm.pgm_stack[i] = Instruction("JMP", [end_of_if_address])
 
+class ForNode(AST):
+
+    def __init__(self, initial, cond, end_expr, body):
+        self._initial = initial
+        self._cond = cond
+        self._end_expr = end_expr
+        self._body = body
+        
+    def emit(self, vm):
+        self._inital.emit(vm)
+        address_anchor = vm.get_current_address()
+        branch_anchor = vm.get_current_address()
+        self._cond.emit(vm)
+        vm.append_instruction(Instruction("BZ", [ None ]))
+        for i in self._body:
+            i.emit(vm)
+        self._end_expr.emit(vm)
+        vm.append_instruction(Instruction("LABEL", [ "CONTINUE_LOOP" ]))
+        vm.append_instruction(Instruction("JMP", [address_anchor]))
+        vm.append_instruction(Instruction("LABEL", [ "END_LOOP" ]))
+        vm.pgm_stack[branch_anchor] = Instruction("BZ", [vm.get_current_address()])
+
 
 class WhileNode(AST):
 
@@ -278,6 +300,29 @@ class ListAssignNode(AST):
                 i.emit(vm)
         vm.append_instruction(Instruction(
             "LIST ASSIGN", [self._name, len(self._arry) ]))
+
+class ScalarIncrDecrNode(AST):
+
+    def __init__(self, name, expr, op):
+        self._name = name
+        self._expr = expr
+        self._op = op
+        
+    def emit(self, vm):
+        if (self._op == '+='):
+            self._expr.emit(vm)
+            vm.append_instruction(Instruction("INCR SCALAR", [ self._name ]))
+        elif (self._op == '-='):
+            self._expr.emit(vm)
+            vm.append_instruction(Instruction("DECR SCALAR", [ self._name ]))
+        elif (self._op == '++'):
+            vm.append_instruction(Instruction("PUSH CONST", [ Value(1) ]))
+            vm.append_instruction(Instruction("INCR SCALAR", [ self._name ]))
+            vm.append_instruction(Instruction("PUSH SCALAR VAR", [ self._name, False ]))
+        elif (self._op == '--'):
+            vm.append_instruction(Instruction("PUSH CONST", [ Value(1) ]))
+            vm.append_instruction(Instruction("DECR SCALAR", [ self._name ]))
+            vm.append_instruction(Instruction("PUSH SCALAR VAR", [ self._name, False ]))
 
 class ScalarAssignNode(AST):
 

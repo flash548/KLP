@@ -148,6 +148,10 @@ class VM:
             self.pc = int(instr.args[0])
         elif (instr.opcode == "SCALAR ASSIGN"):
             self.perform_scalar_assign(instr.args[0], instr.args[1])
+        elif (instr.opcode == "INCR SCALAR"):
+            self.perform_incr_decr(instr.args[0], True)
+        elif (instr.opcode == "DECR SCALAR"):
+            self.perform_incr_decr(instr.args[0], False)
         elif (instr.opcode == "LIST ASSIGN"):
             self.perform_list_assign(instr.args[0], instr.args[1])
         elif (instr.opcode == "HASH ASSIGN"):
@@ -317,6 +321,16 @@ class VM:
             self.current_scope = {}
         else:
             raise Exception("Undefined sub: " + name)
+            
+    def perform_incr_decr(self, name, incr):
+        v = self.get_variable(name)
+        val = self.stack.pop()
+        if (incr == True):
+            v = v + val
+        else:
+            v = v - val
+        self.set_variable(name, v)
+            
 
     def perform_func_call(self, name, argslen):
         args = []

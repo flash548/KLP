@@ -48,6 +48,8 @@ class TokenType:
     THEN = "THEN"
     COMMA = "COMMA"
     WHILE = "WHILE"
+    PLUSPLUS = "PLUSPLUS"
+    MINUSMINUS = "MINUSMINUS"
     INCR = "INCR"
     DECR = "DECR"
     COMMENT = "COMMENT"

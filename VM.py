@@ -106,7 +106,7 @@ class VM:
                 self.stack.push(Value(True))
                 self.pgm_stack = self.pgm_stack_frames.pop()
                 self.pc = self.pc_stack.pop()
-                self.current_scope = self.scope_stack.pop()
+                #self.current_scope = self.scope_stack.pop()
                 return True
 
             return False  # no more code to execute
@@ -160,6 +160,8 @@ class VM:
             self.perform_call_user_func(str(instr.args[0]))
         elif (instr.opcode == "CALL"):
             self.perform_func_call(str(instr.args[0]), instr.args[1])
+        elif (instr.opcode == "CALLUSER"):
+            self.perform_user_func_call(str(instr.args[0]))
         elif (instr.opcode == "RET"):
             self.perform_return(instr.args[0])
         else:
@@ -342,6 +344,18 @@ class VM:
             self.stack.push(Value(1))
         else:
             raise Exception("Undefined built-in: " + name)
+            
+    def perform_user_func_call(self, name):
+        if (name in self.pgm_frames):
+            # store away current pgm stack and its pc
+            self.pgm_stack_frames.append(self.pgm_stack)
+            self.pc_stack.append(self.pc);
+
+            # set current pgm stack to the stack from our user defined function hash
+            self.pgm_stack = self.pgm_frames[name];
+            self.pc = 0;  # reset the pc
+        else:
+            raise Exception("Unknown user function: " + name)
 
     def perform_scalar_assign(self, name, index_expr):
         v = self.get_variable(name)

@@ -111,16 +111,6 @@ class UnOpNode(AST):
         vm.append_instruction(Instruction("UNOP", [str(self._op)]))
 
 
-class UserFunctionNode(AST):
-
-    def __init__(self, name, args):
-        self._name = name
-        self._args = args
-
-    def emit(self, vm):
-        pass
-
-
 class BuiltInFunctionNode(AST):
 
     def __init__(self, name, args):
@@ -131,6 +121,23 @@ class BuiltInFunctionNode(AST):
         for i in self._args:
             i.emit(vm)
         vm.append_instruction(Instruction("CALL", [self._name, len(self._args)]))
+        
+class FuncCallNode(AST):
+
+    def __init__(self, name, args):
+        self._name = name
+        self._args = args
+
+    def emit(self, vm):
+        for i in self._args:
+            i.emit(vm)
+        vm.append_instruction(Instruction(
+            "LIST ASSIGN", ['@_', len(self._args) ]))
+        vm.create_new_pgm_stack()
+        AST.func_table[self._name].emit(vm);
+        vm.save_pgm_stack(self._name);
+        vm.restore_pgm_stack();
+        vm.append_instruction(Instruction("CALLUSER", [self._name ]))
 
 class IndexNode(AST):
 

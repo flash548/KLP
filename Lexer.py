@@ -126,6 +126,10 @@ class Lexer:
             return Token(TokenType.UNLESS, Value('unless'))
         elif (name == "for"):
             return Token(TokenType.FOR, Value('for'))
+        elif (name == 'sub'):
+            return Token(TokenType.FUNCTION_DECLARE, Value('sub'))
+        elif (name == "do"):
+            return Token(TokenType.DO, Value('do'))
         elif (name == "last"):
             return Token(TokenType.LAST, Value('last'))
         elif (name == "continue"):

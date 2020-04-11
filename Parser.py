@@ -182,7 +182,27 @@ class Parser:
         return WhileNode(expr, while_clause, continue_clause, invert_logic)
 
     def function_declare_statement(self):
-        pass
+        self.eat(TokenType.FUNCTION_DECLARE)
+        name = str(self.current_token.value)
+        if (name not in AST.func_table):
+            AST.func_table[name] = None
+        
+        self.eat(TokenType.ID)
+        self.eat(TokenType.LCURLY)
+        func_body = []
+        while (self.current_token.type != TokenType.RCURLY):
+            func_body.append(self.statement())
+            self.eat_end_of_statement()
+        self.eat(TokenType.RCURLY)
+        root = RootNode(func_body)
+        AST.func_table[name] = root
+        return AST()
+        
+    def function_call(self):
+        name = str(self.current_token.value)
+        self.eat(TokenType.ID)
+        args = self.consume_list()
+        return FuncCallNode(name, args)
 
     def expression(self):
         result = self.term()
@@ -278,6 +298,14 @@ class Parser:
             self.eat(TokenType.LBRACKET)
             anon_list = self.consume_list(TokenType.RBRACKET)
             return AnonListNode(anon_list)
+        elif (token.type == TokenType.DO):
+            self.eat(TokenType.DO)
+            if (self.current_token.type == TokenType.ID):
+                # a sub call
+                return self.function_call()
+            else:
+                # a DO block
+                pass
         elif (token.type == TokenType.PLUS):
             self.eat(TokenType.PLUS)
             return UnOpNode(Value('+'), self.factor())

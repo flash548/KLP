@@ -20,9 +20,9 @@ class Lexer:
         else:
             self.current_char = self.text[self.pos]
 
-    def peek(self):
-        if (self.pos + 1 < len(self.text)):
-            return self.text[self.pos + 1]
+    def peek(self, num=1):
+        if (self.pos + num < len(self.text)):
+            return self.text[self.pos + num]
         else:
             return '\0'
 
@@ -109,8 +109,7 @@ class Lexer:
     def get_id(self):
         name = ""
         while (
-            self.current_char != '\0' and (
-                self.current_char.isalnum() or self.current_char == '_')):
+            self.current_char != '\0' and (self.current_char.isalnum() or self.current_char == '_')):
             name += self.current_char
             self.advance()
 
@@ -161,6 +160,7 @@ class Lexer:
                 return parse_binary()
 
             if (self.current_char == '#'):
+                self.advance()
                 return self.comment()
 
             if (self.current_char.isdigit()):
@@ -174,14 +174,14 @@ class Lexer:
                 self.advance()
                 return self.parse_literal_string()
 
-            if (self.current_char.isalnum()):
+            if (self.current_char.isalnum() or self.current_char == '_'):
                 if (self.current_char == 'e' and
-                        self.peek() == 'q'):
+                        self.peek() == 'q' and self.peek(2).isspace()):
                     self.advance()
                     self.advance()
                     return Token(TokenType.STR_EQ, Value('eq'))
                 elif (self.current_char == 'n' and
-                      self.peek() == 'e'):
+                      self.peek() == 'e' and self.peek(2).isspace()):
                     self.advance()
                     self.advance()
                     if self.current_char.isspace():
@@ -191,33 +191,42 @@ class Lexer:
                         self.advance()
                         return Token(TokenType.NEXT, Value('next'))
                 elif (self.current_char == 'l' and
-                      self.peek() == 't'):
+                      self.peek() == 't' and self.peek(2).isspace()):
                     self.advance()
                     self.advance()
                     return Token(TokenType.STR_LT, Value('lt'))
                 elif (self.current_char == 'l' and
-                      self.peek() == 'e'):
+                      self.peek() == 'e' and self.peek(2).isspace()):
                     self.advance()
                     self.advance()
                     return Token(TokenType.STR_LE, Value('le'))
                 elif (self.current_char == 'g' and
-                      self.peek() == 'e'):
+                      self.peek() == 'e' and self.peek(2).isspace()):
                     self.advance()
                     self.advance()
                     return Token(TokenType.STR_GE, Value('ge'))
                 elif (self.current_char == 'g' and
-                      self.peek() == 't'):
+                      self.peek() == 't' and self.peek(2).isspace()):
                     self.advance()
                     self.advance()
                     return Token(TokenType.STR_GT, Value('gt'))
                 else:
                     return self.get_id()
-
-            if (self.current_char == '$' and self.peek().isalnum()):
+            
+            if (self.current_char == '$' and self.peek() == ' '):
+                advance()
+                advance()
+                return
+            
+            if (self.current_char == '$' and (self.peek().isalnum() or self.peek() == '_' or self.peek() == '#')):
                 self.advance()
-                return Token(TokenType.SCALAR, Value('SCALAR'))
+                if (self.current_char == '#'):
+                    self.advance()
+                    return Token(TokenType.LIST_MAX_INDEX, Value('$#'))
+                else:
+                    return Token(TokenType.SCALAR, Value('SCALAR'))
 
-            if (self.current_char == '@' and self.peek().isalnum()):
+            if (self.current_char == '@' and (self.peek().isalnum() or self.peek() == '_')):
                 self.advance()
                 return Token(TokenType.LIST, Value('LIST'))
                 

@@ -22,7 +22,7 @@ class Parser:
                 self.lineNumber += 1
             self.current_token = self.lex.get_next_token()
         else:
-            print tokType, self.current_token.type
+            print "Token Eat error: " + tokType, self.current_token.type
             self.error()
 
     def eat_end_of_statement(self):
@@ -54,6 +54,7 @@ class Parser:
     # statement <- Comment / Func_Decl / Cond / Loop / Block / Sideff ';'
     def statement(self):
         if self.current_token.type == TokenType.COMMENT:
+            self.eat(TokenType.COMMENT)
             return AST()
         elif self.current_token.type == TokenType.FUNCTION_DECLARE:
             return self.function_declare_statement()
@@ -256,6 +257,8 @@ class Parser:
 
     def factor(self):
         token = self.current_token
+        print str(token)
+        
         if (token.type == TokenType.SCALAR):
             self.eat(TokenType.SCALAR)
             name = str(self.current_token.value)
@@ -285,6 +288,7 @@ class Parser:
                 return ScalarIncrDecrNode(name, None, 'post--')
             else:
                 return ScalarVarNode(name, index_expr)
+                
         elif (token.type == TokenType.LIST):
             self.eat(TokenType.LIST)
             name = str(self.current_token.value)
@@ -294,6 +298,15 @@ class Parser:
                 return ListAssignNode(name, self.consume_list())
             else:
                 return ListVarNode(name)      
+                
+        elif (token.type == TokenType.LIST_MAX_INDEX):
+            self.eat(TokenType.LIST_MAX_INDEX)
+            name = ''
+            if (self.current_token.type == TokenType.ID):
+                name = str(self.current_token.value)
+                self.eat(TokenType.ID)
+            return ListMaxIndexNode(name)
+                
         elif (token.type == TokenType.LBRACKET):
             self.eat(TokenType.LBRACKET)
             anon_list = self.consume_list(TokenType.RBRACKET)
@@ -367,6 +380,9 @@ class Parser:
             array purposes or for function arguments.  List can start with
             an LPAREN or not.  If not, then end of list is either an RPAREN,
             SEMICOLON or a statement modifier (if, until, unless, while...)
+            
+            If ender is a SEMICOLON, stop processig the list, but don't eat it
+            since the statement() func will take care of eating end of statements
         """
         
         list_elems = []
@@ -377,6 +393,7 @@ class Parser:
                 self.eat(TokenType.LPAREN)
         else:
             end_token = ender
+            
         while ((self.current_token.type != end_token) and
                 (self.current_token.type != TokenType.SEMICOLON) and
                 (self.current_token.type != TokenType.RPAREN) and
@@ -385,6 +402,6 @@ class Parser:
             if (self.current_token.type == TokenType.COMMA):
                 self.eat(TokenType.COMMA)
         if (self.current_token.type not in self.statement_modifier_tokens):
-            if (self.current_token.type == end_token):
+            if (self.current_token.type == end_token and end_token != TokenType.SEMICOLON):
                 self.eat(end_token)
         return list_elems

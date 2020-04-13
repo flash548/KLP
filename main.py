@@ -3,6 +3,7 @@ from Parser import *
 from AST import *
 from VM import *
 
+print "\n------- NEW RUN -------\n"
 # TODO:
 # short circuit ops
 # 'or' 'and' 'xor' operators and precedence (but perl 1-4 didn't have these)
@@ -44,18 +45,30 @@ from VM import *
     
 l = Lexer(""" 
 sub test {
-    print "hello";
+    $x=4;
+    print $_[0];
+    2;
 }
 
-do test()
+sub test {
+    4;
+}
+
+# this is a comment
+@arr = (1,2,3);
+# another comment
+print "\n" . $#;
+print length "hello";
 """)
 
 p = Parser(l)
 ast = p.program()
 v = VM()
 ast.emit(v)
-v.dump_pgm_stack()
+#v.dump_pgm_stack()
 v.run()
 
-
+print "\n\n"
 #v.dump_current_scope()
+#v.dump_pgm_stack('test')
+#v.dump_stack()

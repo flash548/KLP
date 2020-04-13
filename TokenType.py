@@ -86,5 +86,6 @@ class TokenType:
     COMPLEMENT = 'COMPLEMENT'
     SCALAR = 'SCALAR'
     LIST = 'LIST'
+    LIST_MAX_INDEX = 'LIST_MAX_INDEX'
     END_OF_SOURCE = "END OF SOURCE"
-    BUILTINS = [ 'print' ]
+    BUILTINS = [ 'print', 'length' ]

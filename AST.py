@@ -132,7 +132,7 @@ class FuncCallNode(AST):
         for i in self._args:
             i.emit(vm)
         vm.append_instruction(Instruction(
-            "LIST ASSIGN", ['@_', len(self._args) ]))
+            "LIST ASSIGN", ['_', len(self._args) ]))
         vm.create_new_pgm_stack()
         AST.func_table[self._name].emit(vm);
         vm.save_pgm_stack(self._name);
@@ -269,6 +269,13 @@ class IndexVar(AST):
         self._expr.emit(vm)
         vm.append_instruction(Instruction("INDEX VAR", []))
 
+class ListMaxIndexNode(AST):
+    
+    def __init__(self, name):
+        self._name = name
+        
+    def emit(self, vm):
+        vm.append_instruction(Instruction("PUSH LIST MAX INDEX", [ self._name ]))
 
 class ScalarVarNode(AST):
 
@@ -355,8 +362,9 @@ class ScalarAssignNode(AST):
         if (type(self._expr) is list):
             # assigning list in scalar context, emit last element
             i[-1].emit(vm)
+
         else:
-            # an actual scalar value
+            # an actual scalar value assigned to something
             self._expr.emit(vm)
-            vm.append_instruction(Instruction(
-            "SCALAR ASSIGN", [ self._name, True if self._index_expr != None else False ]))
+            vm.append_instruction(Instruction("SCALAR ASSIGN", [ self._name, True if self._index_expr != None else False ]))
+

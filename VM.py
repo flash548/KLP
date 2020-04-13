@@ -20,14 +20,23 @@ class VM:
     def __init__(self):
         self.pgm_stack = []
         self.pgm_stack_frames = []
-        self.pgm_frames = {}
+        self.pgm_frames = {} # holds our subroutines (each being a separate pgm_stack)
         self.stack = DataStack(100)
         self.pc_stack = []
         self.pc = 0
         self.current_scope = {}  # place where we store variables
         self.scope_stack = []
 
-    def get_variable(self, name):
+    def get_variable(self, name, type):
+        if type == 'scalar':
+            name = '$' + name
+        elif type == 'list':
+            name = '@' + name
+        elif type == 'hash':
+            name = '%' + name
+        else:
+            raise Exception("unknown variable type in get_variable()")
+            
         if name in self.current_scope:
             return self.current_scope[name]
 
@@ -38,14 +47,16 @@ class VM:
 
         return Value(0)  # if we get here, autovivify in perl parlance...
 
-    def var_exists(self, name):
-        try:
-            self.get_variable(name)
-            return True
-        except BaseException:
-            return False
+    def set_variable(self, name, val, type):
+        if type == 'scalar':
+            name = '$' + name
+        elif type == 'list':
+            name = '@' + name
+        elif type == 'hash':
+            name = '%' + name
+        else:
+            raise Exception("unknown variable type in set_variable()")
 
-    def set_variable(self, name, val):
         if name in self.current_scope:
             self.current_scope[name] = val
         else:
@@ -72,12 +83,20 @@ class VM:
     def save_pgm_stack(self, name):
         self.pgm_frames[name] = self.pgm_stack
 
-    def dump_pgm_stack(self):
+    def dump_pgm_stack(self, name=None):
         """ Dumps the current program stack to STDOUT """
         
-        print "PGM Stack:"
-        for i in range(0, len(self.pgm_stack)):
-            print str(i) + ": " + str(self.pgm_stack[i])
+        if (name == None):
+            print "PGM Stack:"
+            for i in range(0, len(self.pgm_stack)):
+                print str(i) + ": " + str(self.pgm_stack[i])
+        else:
+            if name in self.pgm_frames:
+                print "PGM Stack named: " + name
+                for i in range(len(self.pgm_frames[name])):
+                    print str(i) + ": " + str(self.pgm_frames[name][i])
+            else:
+                print "No program frame exists by that name: " + name
 
     def dump_stack(self):
         """ Dumps the data stack to STDOUT for debugging """
@@ -103,7 +122,6 @@ class VM:
             return True
         else:
             if len(self.pc_stack) != 0:
-                self.stack.push(Value(True))
                 self.pgm_stack = self.pgm_stack_frames.pop()
                 self.pc = self.pc_stack.pop()
                 #self.current_scope = self.scope_stack.pop()
@@ -148,6 +166,8 @@ class VM:
             self.pc = int(instr.args[0])
         elif (instr.opcode == "SCALAR ASSIGN"):
             self.perform_scalar_assign(instr.args[0], instr.args[1])
+        elif (instr.opcode == "PUSH LIST MAX INDEX"):
+            self.perform_get_list_max_index(instr.args[0])
         elif (instr.opcode == "INCR SCALAR"):
             self.perform_incr_decr(instr.args[0], True)
         elif (instr.opcode == "DECR SCALAR"):
@@ -192,6 +212,8 @@ class VM:
             self.stack.push(_left.str_concat(_right))
         elif (op == '%'):
             self.stack.push(_left % _right)
+        elif (op == '=='):
+            self.stack.push(_left == _right)
         elif (op == 'eq'):
             self.stack.push(_left.str_eq(_right))
         elif (op == 'ne'):
@@ -248,7 +270,11 @@ class VM:
     # index_expr - T/F if we're indexing this variable
     # context - scalar or list
     def perform_push_var(self, name, index_expr, context):
-        v = self.get_variable(name)
+        if (index_expr == True):
+            v = self.get_variable(name, 'list')
+        else:
+            v = self.get_variable(name, context)
+            
         if (index_expr == True):
             v = v[int(self.stack.pop())]    
         if (context == 'scalar'):
@@ -257,6 +283,10 @@ class VM:
             self.stack.push(v.list_context())
         else:
             raise Exception("Unknown context!")
+            
+    def perform_get_list_max_index(self, name):
+        v = self.get_variable(name, 'list')
+        self.stack.push(Value(len(v)-1))
             
     def perform_interpolated_push(self, val):
         """ Interpolate this string before pushing as a const """
@@ -270,8 +300,10 @@ class VM:
         escaped = False
         varname = ""
         var_to_replace = ""
+        sigil = None
         while i < len(string_const):
             if (string_const[i] in ('$', '@', '%') and not escaped):
+                sigil = string_const[i]
                 in_var = True
                 var_to_replace += string_const[i]
             elif (string_const[i] == '{' and in_var):
@@ -305,7 +337,12 @@ class VM:
         # now replace all the vars with their looked up values
         #  these resolves will be in scalar context as a string
         for var in vars:
-            v = self.get_variable(vars[var])
+            var_kind = None
+            if sigil == '$': var_kind = 'scalar'
+            elif sigil == '@': var_kind = 'list'
+            elif sigil == '%': var_kind = 'hash'
+            
+            v = self.get_variable(vars[var], var_kind)
             string_const = string_const.replace(var, str(v.scalar_context()))
                 
         self.stack.push(Value(string_const))
@@ -319,19 +356,19 @@ class VM:
             self.pgm_stack = self.pgm_frames[name]
             self.pc = 0
 
-            self.scope_stack.append(self.current_scope)
-            self.current_scope = {}
+            #self.scope_stack.append(self.current_scope)
+            #self.current_scope = {}
         else:
             raise Exception("Undefined sub: " + name)
             
     def perform_incr_decr(self, name, incr):
-        v = self.get_variable(name)
+        v = self.get_variable(name, 'scalar')
         val = self.stack.pop()
         if (incr == True):
             v = v + val
         else:
             v = v - val
-        self.set_variable(name, v)
+        self.set_variable(name, v, 'scalar')
             
 
     def perform_func_call(self, name, argslen):
@@ -341,7 +378,9 @@ class VM:
         
         if (name == "print"):
             sys.stdout.write(str(args[0]))
-            self.stack.push(Value(1))
+            self.stack.push(Value(1)) # return val
+        elif (name == 'length'):
+            self.stack.push(len(str(args[0])))
         else:
             raise Exception("Undefined built-in: " + name)
             
@@ -357,15 +396,23 @@ class VM:
         else:
             raise Exception("Unknown user function: " + name)
 
-    def perform_scalar_assign(self, name, index_expr):
-        v = self.get_variable(name)
+    def perform_scalar_assign(self, name, index_expr):        
         if (index_expr == True):
+            v = self.get_variable(name, 'list')
             val = self.stack.pop()
             idx = self.stack.pop()
             v[idx.numerify()] = val.scalar_context()
+            self.set_variable(name, v, 'list')
+         
+            # push the assigned val back to the stack
+            self.stack.push(v)
         else:
+            v = self.get_variable(name, 'scalar')
             v = self.stack.pop().scalar_context()
-        self.set_variable(name, v)
+            self.set_variable(name, v, 'scalar')
+            
+            # push the assigned val back to the stack
+            self.stack.push(v)
 
     def perform_push_anon_list(self, length):
         arry = Value([])
@@ -379,7 +426,7 @@ class VM:
         for i in range(0, length):
             arry.push(self.stack.pop())
         arry.reverse()
-        self.set_variable(name, arry)
+        self.set_variable(name, arry, 'list')
 
     def perform_hash_assign(self, name):
-        self.set_variable(name, self.stack.pop().hash_context())
+        self.set_variable(name, self.stack.pop().hash_context(), 'hash')

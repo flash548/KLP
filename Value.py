@@ -74,7 +74,8 @@ class Value(object):
             else:
                 return str(self._val)
         elif (self.type == "List" or self.type == "Hash"):
-            return str(len(self._val))
+            #return str(len(self._val))
+            return ''.join(map(lambda x: str(x), self._val))
         else:
             return ""
 

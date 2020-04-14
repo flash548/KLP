@@ -44,21 +44,14 @@ print "\n------- NEW RUN -------\n"
     # """)
     
 l = Lexer(""" 
-sub test {
-    $x=4;
-    print $_[0];
-    2;
+$i = 0;
+do {
+    print "$i- Hello\n";
+    $i++;
+    last if $i == 5;
 }
+while ($i < 10)
 
-sub test {
-    4;
-}
-
-# this is a comment
-@arr = (1,2,3);
-# another comment
-print "\n" . $#;
-print length "hello";
 """)
 
 p = Parser(l)

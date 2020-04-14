@@ -250,6 +250,24 @@ class WhileNode(AST):
         vm.append_instruction(Instruction("LABEL", [ "END_LOOP" ]))
         vm.pgm_stack[branch_anchor] = Instruction("BZ", [vm.get_current_address()])
         
+class DoWhileNode(AST):
+    
+    def __init__(self, do_body, expr):
+        self._do_body = do_body
+        self._expr = expr
+        
+    def emit(self, vm):
+        address_anchor = vm.get_current_address()
+        for i in self._do_body:
+            i.emit(vm)
+        self._expr.emit(vm)
+        branch_anchor = vm.get_current_address()
+        vm.append_instruction(Instruction("BZ", [ None ]))
+        vm.append_instruction(Instruction("LABEL", [ "CONTINUE_LOOP" ]))
+        vm.append_instruction(Instruction("JMP", [ address_anchor ]))
+        vm.append_instruction(Instruction("LABEL", [ "END_LOOP" ]))
+        vm.pgm_stack[branch_anchor] = Instruction("BZ", [ vm.get_current_address() ])
+        
 class LastNode(AST):
 
     def emit(self, vm):

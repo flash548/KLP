@@ -243,6 +243,9 @@ class Lexer:
                 if (self.current_char == '='):
                     self.advance()
                     return Token(TokenType.NEQ, Value('!='))
+                elif (self.current_char == '~'):
+                    self.advance()
+                    return Token(TokenType.NOT_MATCH, Value('!~'))
                 return Token(TokenType.NOT, Value('!'))
                 
             if (self.current_char == '|'):
@@ -262,6 +265,9 @@ class Lexer:
                 if (self.current_char == '='):
                     self.advance()
                     return Token(TokenType.EQ, Value('=='))
+                elif (self.current_char == '~'):
+                    self.advance()
+                    return Token(TokenType.MATCH, Value('=~'))
                 else:
                     return Token(TokenType.ASSIGN, Value('='))
 
@@ -280,6 +286,10 @@ class Lexer:
                     return Token(TokenType.COLONCOLON, Value('::'))
                 self.advance()
                 return Token(TokenType.COLON, Value(':'))
+                
+            if (self.current_char == '/'):
+                self.advance()
+                return Token(TokenType.SLASH, Value('/'))
 
             if (self.current_char == ';'):
                 self.advance()

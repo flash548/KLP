@@ -198,6 +198,24 @@ class Parser:
         root = RootNode(func_body)
         AST.func_table[name] = root
         return AST()
+    
+    def do_statement(self):
+        self.eat(TokenType.LCURLY)
+        do_body = []
+        while (self.current_token.type != TokenType.RCURLY):
+            do_body.append(self.statement())
+            self.eat_end_of_statement()
+        self.eat(TokenType.RCURLY)
+        root = RootNode(do_body)
+        expr = None
+        # check for do-while
+        if (self.current_token.type == TokenType.WHILE):
+            self.eat(TokenType.WHILE)
+            expr = self.expression()
+            self.eat_end_of_statement()
+            return DoWhileNode(do_body, expr)
+        else:
+            return DoStatementNode(do_body)
         
     def function_call(self):
         name = str(self.current_token.value)
@@ -311,6 +329,7 @@ class Parser:
             self.eat(TokenType.LBRACKET)
             anon_list = self.consume_list(TokenType.RBRACKET)
             return AnonListNode(anon_list)
+            
         elif (token.type == TokenType.DO):
             self.eat(TokenType.DO)
             if (self.current_token.type == TokenType.ID):
@@ -318,16 +337,20 @@ class Parser:
                 return self.function_call()
             else:
                 # a DO block
-                pass
+                return self.do_statement()
+                
         elif (token.type == TokenType.PLUS):
             self.eat(TokenType.PLUS)
             return UnOpNode(Value('+'), self.factor())
+            
         elif (token.type == TokenType.MINUS):
             self.eat(TokenType.MINUS)
             return UnOpNode(Value('-'), self.factor())
+            
         elif (token.type == TokenType.NOT):
             self.eat(TokenType.NOT)
             return UnOpNode(Value('!'), self.factor())
+            
         elif (token.type == TokenType.PLUSPLUS):
             # prefix incr
             self.eat(TokenType.PLUSPLUS)
@@ -336,6 +359,7 @@ class Parser:
             name = str(self.current_token.value)
             self.eat(TokenType.ID)
             return ScalarIncrDecrNode(name, None, '++')
+            
         elif (token.type == TokenType.MINUSMINUS):
             # prefix decr
             self.eat(TokenType.MINUSMINUS)
@@ -344,6 +368,7 @@ class Parser:
             name = str(self.current_token.value)
             self.eat(TokenType.ID)
             return ScalarIncrDecrNode(name, None, '--')
+            
         elif (token.type == TokenType.ID):
             name = token.value
             self.eat(TokenType.ID)
@@ -355,18 +380,23 @@ class Parser:
                 # its a BAREWORD, croak for now
                 print "CROAK!"
                 return AST()
+                
         elif (token.type == TokenType.INTERP_STR):
             self.eat(TokenType.INTERP_STR)
             return InterpolatedValueNode(token.value)
+            
         elif (token.type == TokenType.STR):
             self.eat(TokenType.STR)
             return ValueNode(token.value)
+            
         elif (token.type == TokenType.INTEGER):
             self.eat(TokenType.INTEGER)
             return ValueNode(token.value)
+            
         elif (token.type == TokenType.FLOAT):
             self.eat(TokenType.FLOAT)
             return ValueNode(token.value)
+            
         elif (token.type == TokenType.LPAREN):
             self.eat(TokenType.LPAREN)
             result = self.expression()

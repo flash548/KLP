@@ -307,8 +307,10 @@ class VM:
                 in_var = True
                 var_to_replace += string_const[i]
             elif (string_const[i] == '{' and in_var):
+                var_to_replace += '{'
                 in_curly = True
             elif (string_const[i] == '}' and in_curly):
+                var_to_replace += '}'
                 vars[var_to_replace] = varname
                 varname = ""
                 var_to_replace = ""
@@ -316,7 +318,7 @@ class VM:
                 in_curly = False
             elif (string_const[i].isspace() and in_var and in_curly):
                 raise Exception("Invalid variable string: " + varname)
-            elif (string_const[i].isspace() and in_var):
+            elif ((not string_const[i].isalnum() and string_const[i] != '_') and in_var):
                 vars[var_to_replace] = varname
                 varname = ""
                 var_to_replace = ""
@@ -342,7 +344,7 @@ class VM:
             elif sigil == '@': var_kind = 'list'
             elif sigil == '%': var_kind = 'hash'
             
-            v = self.get_variable(vars[var], var_kind)
+            v = self.get_variable(vars[var].replace('{', '').replace('}', ''), var_kind)
             string_const = string_const.replace(var, str(v.scalar_context()))
                 
         self.stack.push(Value(string_const))

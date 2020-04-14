@@ -88,4 +88,6 @@ class TokenType:
     LIST = 'LIST'
     LIST_MAX_INDEX = 'LIST_MAX_INDEX'
     END_OF_SOURCE = "END OF SOURCE"
+    SLASH = "SLASH" # for Reg Expressions '/'
+    
     BUILTINS = [ 'print', 'length' ]

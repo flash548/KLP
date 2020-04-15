@@ -45,7 +45,13 @@ class VM:
                 if name in scope:
                     return scope[name]
 
-        return Value(0)  # if we get here, autovivify in perl parlance...
+        if type == 'scalar':
+            return Value(0)  # if we get here, autovivify in perl parlance...
+        elif type == 'list':
+            return Value([])
+        elif type == 'hash':
+            return Value({})
+        
 
     def set_variable(self, name, val, type):
         if type == 'scalar':
@@ -382,7 +388,15 @@ class VM:
             sys.stdout.write(str(args[0]))
             self.stack.push(Value(1)) # return val
         elif (name == 'length'):
-            self.stack.push(len(str(args[0])))
+            self.stack.push(Value(len(str(args[0]))))
+        elif (name == 'join'):
+            ary = args[0]
+            joiner = args[1]
+            tmplist = []            
+            for i in range(len(ary)):
+                tmplist.append(str(ary[i]))
+            
+            self.stack.push(Value(str(joiner).join(tmplist)))
         else:
             raise Exception("Undefined built-in: " + name)
             

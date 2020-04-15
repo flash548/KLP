@@ -144,11 +144,17 @@ class Parser:
     def for_statement(self):
         self.eat(TokenType.FOR)
         self.eat(TokenType.LPAREN)
-        initial = self.expression()
+        initial = None
+        if self.current_token.type != TokenType.SEMICOLON:
+            initial = self.expression()
         self.eat(TokenType.SEMICOLON)
-        cond = self.expression()
+        cond = None
+        if self.current_token.type != TokenType.SEMICOLON:
+            cond = self.expression()
         self.eat(TokenType.SEMICOLON)
-        end = self.expression()
+        end = None
+        if self.current_token.type != TokenType.RPAREN:
+            end = self.expression()
         self.eat(TokenType.RPAREN)
         self.eat(TokenType.LCURLY)
         body = []
@@ -275,7 +281,6 @@ class Parser:
 
     def factor(self):
         token = self.current_token
-        print str(token)
         
         if (token.type == TokenType.SCALAR):
             self.eat(TokenType.SCALAR)

@@ -43,14 +43,23 @@ print "\n------- NEW RUN -------\n"
     # print "yoyo" unless 0;
     # """)
     
-l = Lexer(""" 
-$i = 0;
-do {
-    print "$i- Hello\n";
-    $i++;
-    last if $i == 5;
-}
-while ($i < 10)
+l = Lexer("""
+print "1..6\n";
+
+print "ok 1\n" if 1;
+print "not ok 1\n" unless 1;
+
+print "ok 2\n" unless 0;
+print "not ok 2\n" if 0;
+
+1 && (print "not ok 3\n") if 0;
+1 && (print "ok 3\n") if 1;
+0 || (print "not ok 4\n") if 0;
+0 || (print "ok 4\n") if 1;
+
+$x = 0;
+do {$x[$x] = $x;} while ($x++) < 10;
+print join(' ',@x);
 
 """)
 

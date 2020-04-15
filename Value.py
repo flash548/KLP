@@ -164,7 +164,6 @@ class Value(object):
                 for i in range(0, end+1):
                     self._val.append(Value(None))
             self._val[key] = v		
-        print self.type
             
     def __getitem__(self, key):
         if (self.type == "List"):

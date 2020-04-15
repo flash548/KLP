@@ -90,4 +90,8 @@ class TokenType:
     END_OF_SOURCE = "END OF SOURCE"
     SLASH = "SLASH" # for Reg Expressions '/'
     
-    BUILTINS = [ 'print', 'length' ]
+    BUILTINS = [ 
+        'print',
+        'length',
+        'join' 
+    ]

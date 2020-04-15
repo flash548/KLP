@@ -212,18 +212,22 @@ class ForNode(AST):
         self._body = body
         
     def emit(self, vm):
-        self._initial.emit(vm)
+        if self._initial != None:
+            self._initial.emit(vm)
         address_anchor = vm.get_current_address()
-        self._cond.emit(vm)
-        branch_anchor = vm.get_current_address()
-        vm.append_instruction(Instruction("BZ", [ None ]))
+        if self._cond != None:
+            self._cond.emit(vm)
+            branch_anchor = vm.get_current_address()
+            vm.append_instruction(Instruction("BZ", [ None ]))
         for i in self._body:
             i.emit(vm)
-        self._end_expr.emit(vm)
+        if self._end_expr != None:
+            self._end_expr.emit(vm)
         vm.append_instruction(Instruction("LABEL", [ "CONTINUE_LOOP" ]))
         vm.append_instruction(Instruction("JMP", [address_anchor]))
         vm.append_instruction(Instruction("LABEL", [ "END_LOOP" ]))
-        vm.pgm_stack[branch_anchor] = Instruction("BZ", [vm.get_current_address()])
+        if self._cond != None:
+            vm.pgm_stack[branch_anchor] = Instruction("BZ", [vm.get_current_address()])
 
 
 class WhileNode(AST):
@@ -267,6 +271,16 @@ class DoWhileNode(AST):
         vm.append_instruction(Instruction("JMP", [ address_anchor ]))
         vm.append_instruction(Instruction("LABEL", [ "END_LOOP" ]))
         vm.pgm_stack[branch_anchor] = Instruction("BZ", [ vm.get_current_address() ])
+        
+class DoStatementNode(AST):
+    
+    def __init__(self, do_body):
+        self._do_body = do_body
+        
+    def emit(self, vm):
+        for i in self._do_body:
+            i.emit(vm)
+        
         
 class LastNode(AST):
 

@@ -82,7 +82,6 @@ class Parser:
     
     def check_for_conditional(self, node):
         """ Checks for a statement modifier (if, unless, while, until)... """
-        
         if (self.current_token.type == TokenType.IF):
             self.eat(TokenType.IF)
             expr = self.expression();
@@ -218,7 +217,7 @@ class Parser:
         if (self.current_token.type == TokenType.WHILE):
             self.eat(TokenType.WHILE)
             expr = self.expression()
-            self.eat_end_of_statement()
+            #self.eat_end_of_statement()
             return DoWhileNode(do_body, expr)
         else:
             return DoStatementNode(do_body)
@@ -342,6 +341,7 @@ class Parser:
                 return self.function_call()
             else:
                 # a DO block
+                print "her1"
                 return self.do_statement()
                 
         elif (token.type == TokenType.PLUS):

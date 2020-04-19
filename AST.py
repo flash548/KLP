@@ -321,6 +321,15 @@ class ScalarVarNode(AST):
             
         vm.append_instruction(Instruction("PUSH SCALAR VAR",
             [ self._name, True if self._index_expr != None else False ]))
+
+class HashVarNode(AST):
+
+    def __init__(self, name):
+        self._name = name
+        
+    def emit(self, vm):
+        vm.append_instruction(Instruction("PUSH HASH VAR",
+            [ self._name ] ))
             
 class ListVarNode(AST):
 
@@ -346,7 +355,22 @@ class ListAssignNode(AST):
                 i.emit(vm)
         vm.append_instruction(Instruction(
             "LIST ASSIGN", [self._name, len(self._arry) ]))
+            
+class UnpackAssignNode(AST):
 
+    def __init__(self, vars, rval):
+        self._vars = vars
+        self._rval = rval
+        
+    def emit(self, vm): 
+        # emit the rval first so we can feast off of it
+        # but reverse it first.  
+        self._rval.reverse()
+        for i in self._rval:
+            i.emit(vm)
+            
+        vm.append_instruction(Instruction("MULTI ASSIGN", [ self._vars, len(self._rval) ]))
+            
 class ScalarIncrDecrNode(AST):
 
     def __init__(self, name, expr, op):
@@ -381,7 +405,7 @@ class ScalarIncrDecrNode(AST):
             
 
 class ScalarAssignNode(AST):
-
+    
     def __init__(self, name, expr, index_expr):
         self._name = name
         self._expr = expr
@@ -393,10 +417,10 @@ class ScalarAssignNode(AST):
             
         if (type(self._expr) is list):
             # assigning list in scalar context, emit last element
-            i[-1].emit(vm)
+            self._expr[-1].emit(vm)
 
         else:
             # an actual scalar value assigned to something
             self._expr.emit(vm)
-            vm.append_instruction(Instruction("SCALAR ASSIGN", [ self._name, True if self._index_expr != None else False ]))
-
+        
+        vm.append_instruction(Instruction("SCALAR ASSIGN", [ self._name, True if self._index_expr != None else False ]))

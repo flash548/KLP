@@ -9,9 +9,18 @@ class Lexer:
         self.pos = 0
         self.current_char = self.text[self.pos]
         self.line_number = 0
+        self.anchor_val = 0
 
     def error(self):
         raise Exception("Invalid character. Line number: " + str(self.line_number))
+        
+    def anchor(self):
+        self.anchor_val = self.pos
+        
+    def rewind(self):
+        """ Rewind to last set anchor """
+        self.pos = self.anchor_val
+        self.current_char = self.text[self.pos]
 
     def advance(self):
         self.pos += 1
@@ -229,6 +238,10 @@ class Lexer:
             if (self.current_char == '@' and (self.peek().isalnum() or self.peek() == '_')):
                 self.advance()
                 return Token(TokenType.LIST, Value('LIST'))
+                
+            if (self.current_char == '%' and (self.peek().isalnum() or self.peek() == '_')):
+                self.advance()
+                return Token(TokenType.HASH, Value('HASH'))
                 
             if (self.current_char == '&'):
                 if (self.peek() == '&'):

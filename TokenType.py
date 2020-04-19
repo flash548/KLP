@@ -86,6 +86,7 @@ class TokenType:
     COMPLEMENT = 'COMPLEMENT'
     SCALAR = 'SCALAR'
     LIST = 'LIST'
+    HASH = 'HASH'
     LIST_MAX_INDEX = 'LIST_MAX_INDEX'
     END_OF_SOURCE = "END OF SOURCE"
     SLASH = "SLASH" # for Reg Expressions '/'
@@ -93,5 +94,8 @@ class TokenType:
     BUILTINS = [ 
         'print',
         'length',
-        'join' 
+        'join',
+        'keys',
+        'values',
+        'each'
     ]

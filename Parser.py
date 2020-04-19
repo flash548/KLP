@@ -281,36 +281,94 @@ class Parser:
     def factor(self):
         token = self.current_token
         
+        # multiple assignments, in python parlance 'unpacking' an rvalue
+        # in list context.  This is kinda hacky, but here we gotta discern
+        # a mult assignment from a regular ole expression encased in parens
+        # so we gotta look for an assignment op ahead of time
+        # if (token.type == TokenType.LPAREN):
+            # self.lex.anchor() # insurance policy 
+            # isMultiAssign = False
+            # tok = self.lex.get_next_token()
+            # while (tok.type != TokenType.SEMICOLON):
+                # if (tok.type == TokenType.ASSIGN):
+                    # # this is an assign statement
+                    # isMultiAssign = True
+                    # break
+                # tok = self.lex.get_next_token()
+                    
+            # self.lex.rewind() # cash in insurance policy
+            # if (isMultiAssign):
+                # self.eat(TokenType.LPAREN)
+                # # build list of varnames we'll assign to
+                # vars = []
+                # while (self.current_token.type != TokenType.RPAREN):
+                    # if self.current_token.type == TokenType.SCALAR:
+                        # self.eat(TokenType.SCALAR)
+                        # vars.append('$' + str(self.current_token.value))
+                        # self.eat(TokenType.ID)
+                    # elif self.current_token == TokenType.LIST:
+                        # self.eat(TokenType.LIST)
+                        # vars.append('@' + str(self.current_token.value))
+                        # self.eat(TokenType.ID)
+                    # else:
+                        # print self.current_token.type
+                        # raise Exception("Error parsing unpack assignments")
+                    
+                    # if self.current_token.type == TokenType.COMMA:
+                        # self.eat(TokenType.COMMA)
+                
+                # self.eat(TokenType.RPAREN)
+                # self.eat(TokenType.ASSIGN)
+                # rval = self.consume_list()
+                # return UnpackAssignNode(vars, rval)
+            
+        # '$' sigil -> but its tricky bc it could be assigning
+        # to a list or hash or scalar!!
         if (token.type == TokenType.SCALAR):
             self.eat(TokenType.SCALAR)
             name = str(self.current_token.value)
             self.eat(TokenType.ID)
             index_expr = None
             if (self.current_token.type == TokenType.LBRACKET):
+                # list index expr
                 self.eat(TokenType.LBRACKET)
                 index_expr = self.expression()
                 self.eat(TokenType.RBRACKET)
-            if (self.current_token.type == TokenType.ASSIGN):
-                self.eat(TokenType.ASSIGN)
-                if (self.current_token.type == TokenType.LPAREN):
-                    return ScalarAssignNode(name, self.consume_list(), index_expr)
-                else:
-                    return ScalarAssignNode(name, self.expression(), index_expr)
+                
+            if (self.current_token.type == TokenType.LCURLY):
+                # hash index expr
+                self.eat(TokenType.LCURLY)
+                index_expr = self.expression()
+                self.eat(TokenType.RCURLY)
+                
+            # if (self.current_token.type == TokenType.ASSIGN):
+                # self.eat(TokenType.ASSIGN)
+                
+                # if (self.current_token.type == TokenType.LPAREN):
+                    # return ScalarAssignNode(name, self.consume_list(), index_expr)
+                # else:
+                    # return ScalarAssignNode(name, self.expression(), index_expr)
+                    
             elif (self.current_token.type == TokenType.INCR):
                 self.eat(TokenType.INCR)
                 return ScalarIncrDecrNode(name, self.expression(), '+=')
+                
             elif (self.current_token.type == TokenType.DECR):
                 self.eat(TokenType.DECR)
                 return ScalarIncrDecrNode(name, self.expression(), '-=')
+                
             elif (self.current_token.type == TokenType.PLUSPLUS):
                 self.eat(TokenType.PLUSPLUS)
                 return ScalarIncrDecrNode(name, None, 'post++')
+                
             elif (self.current_token.type == TokenType.MINUSMINUS):
                 self.eat(TokenType.MINUSMINUS)
                 return ScalarIncrDecrNode(name, None, 'post--')
+                
             else:
                 return ScalarVarNode(name, index_expr)
-                
+        
+        # '@' sigil -> interprets rvalue expr in list context
         elif (token.type == TokenType.LIST):
             self.eat(TokenType.LIST)
             name = str(self.current_token.value)
@@ -319,8 +377,16 @@ class Parser:
                 self.eat(TokenType.ASSIGN)                
                 return ListAssignNode(name, self.consume_list())
             else:
-                return ListVarNode(name)      
+                return ListVarNode(name)  
+
+        # '%' sigil
+        elif (token.type == TokenType.HASH):
+            self.eat(TokenType.HASH)
+            name = str(self.current_token.value)
+            self.eat(TokenType.ID)
+            return HashVarNode(name)
                 
+        # '$#" twigil
         elif (token.type == TokenType.LIST_MAX_INDEX):
             self.eat(TokenType.LIST_MAX_INDEX)
             name = ''
@@ -383,8 +449,10 @@ class Parser:
                 return BuiltInFunctionNode(name, args)
             else:
                 # its a BAREWORD, croak for now
-                print "CROAK!"
-                return AST()
+                return ValueNode(name)
+                
+                #print "CROAK!"
+                #return AST()
                 
         elif (token.type == TokenType.INTERP_STR):
             self.eat(TokenType.INTERP_STR)

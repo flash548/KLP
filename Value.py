@@ -5,6 +5,8 @@ class Value(object):
 
     def __init__(self, val):
         self._val = val
+        self._last_hash_key = 0 # used for each() iterator
+        self._hash_keys = [] # used for each() iterator
         if (isinstance(val, list)):
             self.type = "List"
         elif (isinstance(val, dict)):
@@ -149,6 +151,19 @@ class Value(object):
             return Value(s)
         else:
             return Value(None)
+            
+    def _each(self):
+        if (self.type == 'Hash'):
+            try:
+                k = self._val.keys()[self._last_hash_key]
+                v = self._val[k]
+                self._last_hash_key += 1
+                return (Value(k), v)
+            except IndexError:
+                self._last_hash_key = 0 # reset it for next time
+                return (Value(None), Value(None))
+        else:
+            raise Exception("Each arg must be a hash!")
 
     def __setitem__(self, key, v):
         if (self.type == "List"):
@@ -158,6 +173,9 @@ class Value(object):
                     self._val.append(Value(None))
        
             self._val[key] = v
+        elif (self.type == "Hash"):
+            self._val[key] = v
+            self._hash_keys = self._val.keys() # update avail keys
         elif (self.type == "Scalar"):
             if key >= len(self._val):                
                 end = key-len(self._val);
@@ -171,6 +189,11 @@ class Value(object):
                 return Value(None)
             else:
                 return self._val[key]
+        elif (self.type == "Hash"):
+            if key in self._val:
+                return self._val[key]
+            else:
+                return Value(None)
         else:
             return Value(None)
 
@@ -182,11 +205,14 @@ class Value(object):
         elif (self.type == "Scalar"):
             return str(self._val)
         elif (self.type == "List"):
-            return "".join(map(lambda x: str(x), (self._val)))
+            return ",".join(map(lambda x: str(x), (self._val)))
         elif (self.type == "Hash"):
-            s = ""
+            s = "{"
             for i in self._val:
-                s += i + self._val[i]
+                s += i + ' => ' + str(self._val[i]) + ','
+            s = s.strip()
+            s += '}'
+            return s
         else:
             return ""
 

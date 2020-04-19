@@ -1,6 +1,8 @@
 from Value import *
 from DataStack import DataStack
+from builtin_funcs import BuiltIns
 import sys
+
 
 class Instruction:
     def __init__(self, opcode, args):
@@ -103,13 +105,17 @@ class VM:
                     print str(i) + ": " + str(self.pgm_frames[name][i])
             else:
                 print "No program frame exists by that name: " + name
+                
+        print ""
 
     def dump_stack(self):
         """ Dumps the data stack to STDOUT for debugging """
         
         print "Stack Dump: (length: %i)" % len(self.stack)
-        for i in range(0, len(self.stack)):
+        for i in range(len(self.stack)-1, -1, -1):
             print str(self.stack[i])
+            
+        print ""
             
     def dump_current_scope(self):
         """ Dumps the variables in the current scope to STDOUT """
@@ -117,8 +123,11 @@ class VM:
         print "Current Scope Dump:"
         for i in self.current_scope:
             print i + ": " + str(self.current_scope[i])
+            
+        print ""
                 
     def run(self):
+
         while self.step():
             pass
 
@@ -180,14 +189,14 @@ class VM:
             self.perform_incr_decr(instr.args[0], False)
         elif (instr.opcode == "LIST ASSIGN"):
             self.perform_list_assign(instr.args[0], instr.args[1])
-        elif (instr.opcode == "HASH ASSIGN"):
-            self.perform_list_assign(instr.args[0])
         elif (instr.opcode == "CALLUSER"):
             self.perform_call_user_func(str(instr.args[0]))
         elif (instr.opcode == "CALL"):
             self.perform_func_call(str(instr.args[0]), instr.args[1])
         elif (instr.opcode == "CALLUSER"):
             self.perform_user_func_call(str(instr.args[0]))
+        elif (instr.opcode == "MULTI ASSIGN"):
+            self.perform_multi_assign(instr.args[0], instr.args[1])
         elif (instr.opcode == "RET"):
             self.perform_return(instr.args[0])
         else:
@@ -277,19 +286,23 @@ class VM:
     # context - scalar or list
     def perform_push_var(self, name, index_expr, context):
         if (index_expr == True):
-            v = self.get_variable(name, 'list')
+            idx = self.stack.pop()
+            if type(idx._val) is str:
+                v = self.get_variable(name, 'hash')
+                v = v[str(idx)] 
+                self.stack.push(v.scalar_context())
+            else:
+                v = self.get_variable(name, 'list')
+                v = v[int(idx)] 
+                self.stack.push(v.list_context())
         else:
-            v = self.get_variable(name, context)
-            
-        if (index_expr == True):
-            v = v[int(self.stack.pop())]    
-        if (context == 'scalar'):
-            self.stack.push(v.scalar_context())
-        elif (context == 'list'):
-            self.stack.push(v.list_context())
-        else:
-            raise Exception("Unknown context!")
-            
+            if (context == 'list'):
+                v = self.get_variable(name, context)
+                self.stack.push(v.list_context())
+            else:
+                v = self.get_variable(name, context)
+                self.stack.push(v.scalar_context())
+       
     def perform_get_list_max_index(self, name):
         v = self.get_variable(name, 'list')
         self.stack.push(Value(len(v)-1))
@@ -384,19 +397,18 @@ class VM:
         for i in range(0, argslen):
             args.append(self.stack.pop())            
         
-        if (name == "print"):
-            sys.stdout.write(str(args[0]))
-            self.stack.push(Value(1)) # return val
+        if (name == "print"): 
+            BuiltIns.do_print(self, args)
         elif (name == 'length'):
-            self.stack.push(Value(len(str(args[0]))))
+            BuiltIns.do_length(self, args)
         elif (name == 'join'):
-            ary = args[0]
-            joiner = args[1]
-            tmplist = []            
-            for i in range(len(ary)):
-                tmplist.append(str(ary[i]))
-            
-            self.stack.push(Value(str(joiner).join(tmplist)))
+            BuiltIns.do_join(self, args)
+        elif (name == 'keys'):
+            BuiltIns.do_keys(self, args)
+        elif (name == 'values'):
+            BuiltIns.do_values(self, args)
+        elif (name == 'each'):
+            BuiltIns.do_each(self, args)
         else:
             raise Exception("Undefined built-in: " + name)
             
@@ -412,13 +424,18 @@ class VM:
         else:
             raise Exception("Unknown user function: " + name)
 
-    def perform_scalar_assign(self, name, index_expr):        
+    def perform_scalar_assign(self, name, index_expr):  
         if (index_expr == True):
-            v = self.get_variable(name, 'list')
             val = self.stack.pop()
             idx = self.stack.pop()
-            v[idx.numerify()] = val.scalar_context()
-            self.set_variable(name, v, 'list')
+            if (type(idx._val) is str):
+                v = self.get_variable(name, 'hash')
+                v[idx.stringify()] = val.scalar_context()
+                self.set_variable(name, v, 'hash')
+            else:
+                v = self.get_variable(name, 'list')
+                v[idx.numerify()] = val.scalar_context()
+                self.set_variable(name, v, 'list')
          
             # push the assigned val back to the stack
             self.stack.push(v)
@@ -436,13 +453,45 @@ class VM:
             arry.push(self.stack.pop())
         arry.reverse()
         self.stack.push(arry)
+        
+    def perform_multi_assign(self, var_list, elem_count):
+        vals = []
+        if elem_count == 1 and self.stack[-1].type == 'List':
+            # we'll need to check if the top of stack 
+            # is a list, if so we'll need to break it apart
+            # and use its length for 'elem_count'
+            elem_count = len(self.stack[-1]._val)
+            vals = self.stack.pop()
+        else:
+            for i in elem_count:
+                vals.append(self.stack.pop())
 
+        for var in range(0, len(var_list)):
+            if elem_count > 0:
+                if var_list[var][0] == '$':
+                    new_val = vals[var] if type(vals[var]) is Value else Value(vals[var])
+                    self.set_variable(var_list[var][1:], new_val, 'scalar')
+                    elem_count -= 1
+                elif var_list[var][0] == '@':
+                    # if we hit the '@' list context, take rest of rval
+                    self.set_variable(var_list[var][1:], vals[var:], 'list')
+                    elem_count = 0  # any more assignments to var_list will be undefs
+            else:
+                if var[0] == '$':
+                    self.set_variable(var_list[var][1:], Value(None), 'scalar')
+                elif var[0] == '@':
+                    self.set_variable(var_list[var][1:], Value(None), 'list')
+                
+                
     def perform_list_assign(self, name, length):
         arry = Value([])
         for i in range(0, length):
-            arry.push(self.stack.pop())
+            stack_val = self.stack.pop()
+            if stack_val.type == 'List':
+                for j in stack_val._val:
+                    arry.push(Value(j))
+            else:
+                arry.push(stack_val)
         arry.reverse()
         self.set_variable(name, arry, 'list')
 
-    def perform_hash_assign(self, name):
-        self.set_variable(name, self.stack.pop().hash_context(), 'hash')

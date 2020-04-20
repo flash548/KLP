@@ -56,6 +56,8 @@ class Parser:
         if self.current_token.type == TokenType.COMMENT:
             self.eat(TokenType.COMMENT)
             return AST()
+        elif self.current_token.type in [TokenType.SCALAR, TokenType.LIST, TokenType.LPAREN]:
+            return self.assignment()
         elif self.current_token.type == TokenType.FUNCTION_DECLARE:
             return self.function_declare_statement()
         elif self.current_token.type in [TokenType.IF, TokenType.UNLESS]:
@@ -101,6 +103,66 @@ class Parser:
         else:
             return node
     
+    def assignment(self):
+    
+        # look ahead to make sure this is an assignment statement
+        self.lex.anchor() # insurance policy 
+        isAssign = False
+        found_lparen = False
+        found_comma = False
+        tok = self.lex.get_next_token()
+        while (tok.type != TokenType.SEMICOLON):
+            if (tok.type == TokenType.COMMA):
+                found_comma = True
+            if (tok.type == TokenType.COMMA):
+                found_lparen = True
+            if (tok.type == TokenType.ASSIGN):
+                # this is an assign statement
+                isAssign = True
+                break
+            tok = self.lex.get_next_token()
+        
+        self.lex.rewind()
+        if not isAssign:
+            # go back and treat the statement as expression
+            return self.check_for_conditional(self.expression())
+    
+        # multiple assignments, in python parlance 'unpacking' an rvalue
+        # in list context.  This is kinda hacky, but here we gotta discern
+        # a mult assignment from a regular ole expression encased in parens
+        # so we gotta look for an assignment op ahead of time
+        if (found_lparen or found_comma):
+            ender = TokenType.ASSIGN
+            if (found_lparen): 
+                self.eat(TokenType.LPAREN)
+                ender = TokenType.RPAREN
+            
+            # build list of varnames we'll unpack to
+            vars = []
+            while (self.current_token.type != ender):
+                if self.current_token.type == TokenType.SCALAR:
+                    self.eat(TokenType.SCALAR)
+                    vars.append('$' + str(self.current_token.value))
+                    self.eat(TokenType.ID)
+                elif self.current_token.type == TokenType.LIST:
+                    self.eat(TokenType.LIST)
+                    vars.append('@' + str(self.current_token.value))
+                    self.eat(TokenType.ID)
+                else:
+                    print self.current_token.type
+                    raise Exception("Error parsing unpack assignments")
+                
+                if self.current_token.type == TokenType.COMMA:
+                    self.eat(TokenType.COMMA)
+            
+            if (ender == TokenType.RPAREN): self.eat(TokenType.RPAREN)
+            self.eat(TokenType.ASSIGN)
+            rval = self.consume_list()
+            return UnpackAssignNode(vars, rval)
+        
+        # wasn't a multi assignment, treat as expresion
+        return self.check_for_conditional(self.expression())
+        
     def if_statement(self):
         if (self.current_token.type == TokenType.UNLESS):
             self.eat(TokenType.UNLESS)
@@ -108,7 +170,9 @@ class Parser:
         else:
             self.eat(TokenType.IF)
             invert_logic = False
-        expr = self.expression()
+        #self.eat(TokenType.LPAREN)
+        expr = self.statement()
+        #self.eat(TokenType.RPAREN)
         self.eat(TokenType.LCURLY)
         if_clause = []
         else_if_conds = []
@@ -122,7 +186,9 @@ class Parser:
         if (self.current_token.type == TokenType.ELSIF):
             while (self.current_token.type == TokenType.ELSIF):
                 self.eat(TokenType.ELSIF)
-                else_if_conds.append(self.expression())
+                self.eat(TokenType.LPAREN)
+                else_if_conds.append(self.statement())
+                self.eat(TokenType.RPAREN)
                 self.eat(TokenType.LCURLY)
                 clauses = []
                 while (self.current_token.type != TokenType.RCURLY):
@@ -145,15 +211,15 @@ class Parser:
         self.eat(TokenType.LPAREN)
         initial = None
         if self.current_token.type != TokenType.SEMICOLON:
-            initial = self.expression()
+            initial = self.statement()
         self.eat(TokenType.SEMICOLON)
         cond = None
         if self.current_token.type != TokenType.SEMICOLON:
-            cond = self.expression()
+            cond = self.statement()
         self.eat(TokenType.SEMICOLON)
         end = None
         if self.current_token.type != TokenType.RPAREN:
-            end = self.expression()
+            end = self.statement()
         self.eat(TokenType.RPAREN)
         self.eat(TokenType.LCURLY)
         body = []
@@ -170,7 +236,9 @@ class Parser:
         else:
             self.eat(TokenType.WHILE)
             invert_logic = False
-        expr = self.expression()
+        #self.eat(TokenType.LPAREN)
+        expr = self.statement()
+        #self.eat(TokenType.RPAREN)
         self.eat(TokenType.LCURLY)
         while_clause = []
         continue_clause = []
@@ -216,7 +284,7 @@ class Parser:
         # check for do-while
         if (self.current_token.type == TokenType.WHILE):
             self.eat(TokenType.WHILE)
-            expr = self.expression()
+            expr = self.statement()
             #self.eat_end_of_statement()
             return DoWhileNode(do_body, expr)
         else:
@@ -244,6 +312,7 @@ class Parser:
         return result
 
     def term(self):
+    
         result = self.factor()
         
         while self.current_token.type in (
@@ -280,47 +349,6 @@ class Parser:
 
     def factor(self):
         token = self.current_token
-        
-        # multiple assignments, in python parlance 'unpacking' an rvalue
-        # in list context.  This is kinda hacky, but here we gotta discern
-        # a mult assignment from a regular ole expression encased in parens
-        # so we gotta look for an assignment op ahead of time
-        # if (token.type == TokenType.LPAREN):
-            # self.lex.anchor() # insurance policy 
-            # isMultiAssign = False
-            # tok = self.lex.get_next_token()
-            # while (tok.type != TokenType.SEMICOLON):
-                # if (tok.type == TokenType.ASSIGN):
-                    # # this is an assign statement
-                    # isMultiAssign = True
-                    # break
-                # tok = self.lex.get_next_token()
-                    
-            # self.lex.rewind() # cash in insurance policy
-            # if (isMultiAssign):
-                # self.eat(TokenType.LPAREN)
-                # # build list of varnames we'll assign to
-                # vars = []
-                # while (self.current_token.type != TokenType.RPAREN):
-                    # if self.current_token.type == TokenType.SCALAR:
-                        # self.eat(TokenType.SCALAR)
-                        # vars.append('$' + str(self.current_token.value))
-                        # self.eat(TokenType.ID)
-                    # elif self.current_token == TokenType.LIST:
-                        # self.eat(TokenType.LIST)
-                        # vars.append('@' + str(self.current_token.value))
-                        # self.eat(TokenType.ID)
-                    # else:
-                        # print self.current_token.type
-                        # raise Exception("Error parsing unpack assignments")
-                    
-                    # if self.current_token.type == TokenType.COMMA:
-                        # self.eat(TokenType.COMMA)
-                
-                # self.eat(TokenType.RPAREN)
-                # self.eat(TokenType.ASSIGN)
-                # rval = self.consume_list()
-                # return UnpackAssignNode(vars, rval)
             
         # '$' sigil -> but its tricky bc it could be assigning
         # to a list or hash or scalar!!
@@ -341,13 +369,13 @@ class Parser:
                 index_expr = self.expression()
                 self.eat(TokenType.RCURLY)
                 
-            # if (self.current_token.type == TokenType.ASSIGN):
-                # self.eat(TokenType.ASSIGN)
+            if (self.current_token.type == TokenType.ASSIGN):
+                self.eat(TokenType.ASSIGN)
                 
-                # if (self.current_token.type == TokenType.LPAREN):
-                    # return ScalarAssignNode(name, self.consume_list(), index_expr)
-                # else:
-                    # return ScalarAssignNode(name, self.expression(), index_expr)
+                if (self.current_token.type == TokenType.LPAREN):
+                    return ScalarAssignNode(name, self.consume_list(), index_expr)
+                else:
+                    return ScalarAssignNode(name, self.expression(), index_expr)
                     
             elif (self.current_token.type == TokenType.INCR):
                 self.eat(TokenType.INCR)
@@ -407,7 +435,6 @@ class Parser:
                 return self.function_call()
             else:
                 # a DO block
-                print "her1"
                 return self.do_statement()
                 
         elif (token.type == TokenType.PLUS):
@@ -449,10 +476,7 @@ class Parser:
                 return BuiltInFunctionNode(name, args)
             else:
                 # its a BAREWORD, croak for now
-                return ValueNode(name)
-                
-                #print "CROAK!"
-                #return AST()
+                return ValueNode(str(name))
                 
         elif (token.type == TokenType.INTERP_STR):
             self.eat(TokenType.INTERP_STR)

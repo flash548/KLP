@@ -68,11 +68,9 @@ class Value(object):
     def stringify(self):
         if (self.type == "Undef"):
             return ""
-        if (self._val is None):
-            return "0"
         if (self.type == "Scalar"):
             if (str(self._val) == ""):
-                return "0"
+                return ""
             else:
                 return str(self._val)
         elif (self.type == "List" or self.type == "Hash"):

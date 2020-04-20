@@ -1,7 +1,7 @@
 from Value import *
 from DataStack import DataStack
 from builtin_funcs import BuiltIns
-import sys
+import sys, os
 
 
 class Instruction:
@@ -46,9 +46,10 @@ class VM:
             for scope in self.scope_stack:
                 if name in scope:
                     return scope[name]
-
+        
+        # if we get here, autovivify in perl parlance...
         if type == 'scalar':
-            return Value(0)  # if we get here, autovivify in perl parlance...
+            return Value(0)  
         elif type == 'list':
             return Value([])
         elif type == 'hash':
@@ -128,8 +129,14 @@ class VM:
                 
     def run(self):
 
+        # try:
         while self.step():
             pass
+        # except Exception as e:
+            # pass
+            # exc_type, exc_obj, exc_tb = sys.exc_info()
+            # fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+            # print(exc_type, fname, exc_tb.tb_lineno)
 
     def step(self):
         if self.pc < len(self.pgm_stack):
@@ -294,7 +301,7 @@ class VM:
             else:
                 v = self.get_variable(name, 'list')
                 v = v[int(idx)] 
-                self.stack.push(v.list_context())
+                self.stack.push(v.scalar_context())
         else:
             if (context == 'list'):
                 v = self.get_variable(name, context)
@@ -463,25 +470,33 @@ class VM:
             elem_count = len(self.stack[-1]._val)
             vals = self.stack.pop()
         else:
-            for i in elem_count:
+            for i in range(0, elem_count):
                 vals.append(self.stack.pop())
 
+        first_val = Value(None)
         for var in range(0, len(var_list)):
             if elem_count > 0:
                 if var_list[var][0] == '$':
-                    new_val = vals[var] if type(vals[var]) is Value else Value(vals[var])
+                    new_val = vals[var] if (type(vals[var]) is Value) else Value(vals[var])
                     self.set_variable(var_list[var][1:], new_val, 'scalar')
+                    if var == 0: 
+                        first_val = self.get_variable(var_list[var][1:], 'scalar')
                     elem_count -= 1
                 elif var_list[var][0] == '@':
                     # if we hit the '@' list context, take rest of rval
-                    self.set_variable(var_list[var][1:], vals[var:], 'list')
+                    new_val = vals[var:] if (type(vals[var:]) is Value) else Value(vals[var:])
+                    self.set_variable(var_list[var][1:], new_val, 'list')
+                    if var == 0: 
+                        first_val = self.get_variable(var_list[var][1:], 'list')
                     elem_count = 0  # any more assignments to var_list will be undefs
             else:
-                if var[0] == '$':
+                if var_list[var][0] == '$':
                     self.set_variable(var_list[var][1:], Value(None), 'scalar')
-                elif var[0] == '@':
+                elif var_list[var][0] == '@':
                     self.set_variable(var_list[var][1:], Value(None), 'list')
-                
+        
+        # push the first of the assigned vals back on stack 
+        self.stack.push(first_val)        
                 
     def perform_list_assign(self, name, length):
         arry = Value([])

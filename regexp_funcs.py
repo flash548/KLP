@@ -1,5 +1,19 @@
 import re
 import string
+from Value import *
+
+def parse_re_opts(opts):
+    if opts == None or opts == '':
+        return 0
+        
+    opts_str = 0
+    if re.search('i', opts):
+        opts_str |= re.I
+        
+    if re.search('x', opts):
+        opts_str |= re.X
+        
+    return opts_str
 
 # builds a range for a transliteration
 def build_tr_range(start, end):
@@ -63,4 +77,131 @@ def transliteration(in_str, spec, repl):
             idx = len(repl_actual)-1
         new_str += repl_actual[idx]
     return new_str
+
+def do_trans_op(vm, name, index_expr, spec):
+    v = None
+    idx = None
+    cxt = None
+    if name != None:
+        if (index_expr == True):
+            idx = vm.stack.pop()
+            if type(idx._val) is str:
+                cxt = 'hash'
+                v = vm.get_variable(name, 'hash')
+                v = v[str(idx)].scalar_context()
+            else:
+                cxt = 'list'
+                v = vm.get_variable(name, 'list')
+                v = v[int(idx)].scalar_context()
+        else:
+            cxt = 'scalar'
+            v = vm.get_variable(name, 'scalar').scalar_context()
+    else:
+        vm.get_variable('_', 'scalar') # get the $_ var
     
+    trans_spec = spec._val['spec']
+    repl_spec = spec._val['repl']
+    ret = transliteration(v.stringify(), trans_spec, repl_spec)
+    
+    if (index_expr == True):
+        if cxt == 'list':
+            v[idx] = Value(ret)
+            vm.set_variable(name, v, 'list')
+        else:
+            v[idx] = Value(ret)
+            vm.set_variable(name, v, 'hash')
+    else:
+        vm.set_variable(name, Value(ret), 'scalar')
+        
+    if (ret):
+        vm.stack.push(Value(1))
+    else:
+        vm.stack.push(Value(0))
+        
+def do_subs_op(vm, name, index_expr, spec):
+    var = None
+    v = None
+    idx = None
+    cxt = None
+    if name != None:
+        if (index_expr == True):
+            idx = vm.stack.pop()
+            if type(idx._val) is str:
+                cxt = 'hash'
+                var = vm.get_variable(name, 'hash')
+                v = var[str(idx)].scalar_context()
+            else:
+                cxt = 'list'
+                var = vm.get_variable(name, 'list')
+                v = var[int(idx)].scalar_context()
+        else:
+            cxt = 'scalar'
+            v = vm.get_variable(name, 'scalar').scalar_context()
+    else:
+        name = '_'
+        v = vm.get_variable('_', 'scalar') # get the $_ var
+    
+    regex = spec._val['spec']
+    repl = spec._val['repl']
+    options = spec._val['opts']
+    re_obj = re.compile(regex, parse_re_opts(options))
+    ret = re_obj.search(v.stringify())
+
+    # populate $1 thru $10
+    for i in range(10):
+        vm.set_variable(str(i+1), Value(None), 'scalar')
+    if ret and ret.lastindex:
+        for i in range(0, ret.lastindex):
+            vm.set_variable(str(i+1), Value(ret.group(i+1)), 'scalar')
+    
+    if (ret and ret.group(0) != ''):
+        mod_string = None
+        if ('g' in options):
+            mod_string = re_obj.sub(repl, v.stringify(), 0)
+        else:
+            mod_string = re_obj.sub(repl, v.stringify(), 1)
+            
+        if (index_expr == True):
+            if cxt == 'list':
+                var[int(idx)] = Value(mod_string)
+                vm.set_variable(name, var, 'list')
+            else:
+                var[str(idx)] = Value(mod_string)
+                vm.set_variable(name, var, 'hash')
+        else:
+            vm.set_variable(name, Value(mod_string), 'scalar')
+            
+        vm.stack.push(Value(1))
+    else:
+        vm.stack.push(Value(0))
+    
+def do_match_op(vm, name, index_expr, spec):
+    v = None
+    if name != None:
+        if (index_expr == True):
+            idx = vm.stack.pop()
+            if type(idx._val) is str:
+                v = vm.get_variable(name, 'hash')
+                v = v[str(idx)].scalar_context()
+            else:
+                v = vm.get_variable(name, 'list')
+                v = v[int(idx)].scalar_context()
+        else:
+            v = vm.get_variable(name, 'scalar').scalar_context()
+    else:
+        vm.get_variable('_', 'scalar') # get the $_ var
+    
+    regex = spec._val['spec']
+    options = spec._val['opts']
+    ret = re.search(regex, v.stringify(), parse_re_opts(options))
+    for i in range(10):
+        vm.set_variable(str(i+1), Value(None), 'scalar')
+    if ret and ret.lastindex:
+        for i in range(0, ret.lastindex):
+            vm.set_variable(str(i+1), Value(ret.group(i+1)), 'scalar')
+        
+    if (ret):
+        vm.stack.push(Value(1))
+    else:
+        vm.stack.push(Value(0))
+        

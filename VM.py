@@ -1,6 +1,7 @@
 from Value import *
 from DataStack import DataStack
 from builtin_funcs import BuiltIns
+from regexp_funcs import *
 import sys, os
 
 
@@ -162,6 +163,12 @@ class VM:
             self.perform_op(str(instr.args[0]))
         elif (instr.opcode == "UNOP"):
             self.perform_unop(str(instr.args[0]))
+        elif (instr.opcode == "DO MATCH"):
+            do_match_op(self, str(instr.args[0]), instr.args[1], instr.args[2])
+        elif (instr.opcode == "DO TRANS"):
+            do_trans_op(self, str(instr.args[0]), instr.args[1], instr.args[2])
+        elif (instr.opcode == "DO SUBS"):
+            do_subs_op(self, str(instr.args[0]), instr.args[1], instr.args[2])
         elif (instr.opcode == "PUSH CONST"):
             self.stack.push(instr.args[0])
         elif (instr.opcode == "PUSH INTERP CONST"):
@@ -328,7 +335,10 @@ class VM:
         var_to_replace = ""
         sigil = None
         while i < len(string_const):
-            if (string_const[i] in ('$', '@', '%') and not escaped):
+            if (string_const[i] in ('$', '@', '%') 
+                    and not escaped 
+                    and not in_var
+                    and string_const[-1] not in ('$', '@', '%') ):
                 sigil = string_const[i]
                 in_var = True
                 var_to_replace += string_const[i]

@@ -89,7 +89,9 @@ class TokenType:
     HASH = 'HASH'
     LIST_MAX_INDEX = 'LIST_MAX_INDEX'
     END_OF_SOURCE = "END OF SOURCE"
-    SLASH = "SLASH" # for Reg Expressions '/'
+    MATCH_SPEC = "MATCH_SPEC"
+    TRANS_SPEC = "TRANS_SPEC"
+    SUBS_SPEC = "SUBS_SPEC"
     
     BUILTINS = [ 
         'print',

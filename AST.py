@@ -138,6 +138,60 @@ class FuncCallNode(AST):
         vm.save_pgm_stack(self._name);
         vm.restore_pgm_stack();
         vm.append_instruction(Instruction("CALLUSER", [self._name ]))
+        
+class MatchNode(AST):
+
+    def __init__(self, name, index_expr, match_spec):
+        self._name = name
+        self._expr = index_expr
+        self._spec = match_spec
+    
+    def emit(self, vm):
+        has_expr = False
+        if (self._expr != None):
+            self._expr.emit(vm)
+            has_expr = True
+            
+        if self._name == None:
+            self._name = '_'
+           
+        vm.append_instruction(Instruction("DO MATCH", [ self._name, has_expr, self._spec ]))
+        
+class TransNode(AST):
+
+    def __init__(self, name, index_expr, trans_spec):
+        self._name = name
+        self._expr = index_expr
+        self._spec = trans_spec
+    
+    def emit(self, vm):
+        has_expr = False
+        if (self._expr != None):
+            self._expr.emit(vm)
+            has_expr = True
+            
+        if self._name == None:
+            self._name = '_'
+           
+        vm.append_instruction(Instruction("DO TRANS", [ self._name, has_expr, self._spec ]))
+        
+class SubsNode(AST):
+
+    def __init__(self, name, index_expr, subs_spec):
+        self._name = name
+        self._expr = index_expr
+        self._spec = subs_spec
+    
+    def emit(self, vm):
+        has_expr = False
+        if (self._expr != None):
+            self._expr.emit(vm)
+            has_expr = True
+            
+        if self._name == None:
+            self._name = '_'
+           
+        vm.append_instruction(Instruction("DO SUBS", [ self._name, has_expr, self._spec ]))
 
 class IndexNode(AST):
 

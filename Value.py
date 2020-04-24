@@ -6,7 +6,6 @@ class Value(object):
     def __init__(self, val):
         self._val = val
         self._last_hash_key = 0 # used for each() iterator
-        self._hash_keys = [] # used for each() iterator
         if (isinstance(val, list)):
             self.type = "List"
         elif (isinstance(val, dict)):
@@ -173,7 +172,6 @@ class Value(object):
             self._val[key] = v
         elif (self.type == "Hash"):
             self._val[key] = v
-            self._hash_keys = self._val.keys() # update avail keys
         elif (self.type == "Scalar"):
             if key >= len(self._val):                
                 end = key-len(self._val);
@@ -198,8 +196,6 @@ class Value(object):
     def __str__(self):
         if (self.type == "Undef"):
             return ""
-        elif (self._val == None):
-            return ""
         elif (self.type == "Scalar"):
             return str(self._val)
         elif (self.type == "List"):
@@ -207,7 +203,7 @@ class Value(object):
         elif (self.type == "Hash"):
             s = "{"
             for i in self._val:
-                s += i + ' => ' + str(self._val[i]) + ','
+                s += str(i) + ' => ' + str(self._val[i]) + ','
             s = s.strip()
             s += '}'
             return s
@@ -295,16 +291,16 @@ class Value(object):
         return Value(self.stringify() != other.stringify())
 
     def str_lt(self, other):
-        return Value(len(self.stringify()) < len(other.stringify()))
+        return Value((self.stringify()) < (other.stringify()))
 
     def str_le(self, other):
-        return Value(len(self.stringify()) <= len(other.stringify()))
+        return Value((self.stringify()) <= (other.stringify()))
 
     def str_gt(self, other):
-        return Value(len(self.stringify()) > len(other.stringify()))
+        return Value((self.stringify()) > (other.stringify()))
 
     def str_ge(self, other):
-        return Value(len(self.stringify()) >= len(other.stringify()))
+        return Value((self.stringify()) >= (other.stringify()))
         
     def __and__(self, other):
         return Value(self.numerify() & other.numerify())

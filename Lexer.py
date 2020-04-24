@@ -8,6 +8,7 @@ class Lexer:
         self.text = text
         self.pos = 0
         self.current_char = self.text[self.pos]
+        self.previous_char = None
         self.line_number = 0
         self.anchor_val = 0
 
@@ -25,8 +26,10 @@ class Lexer:
     def advance(self):
         self.pos += 1
         if (self.pos > len(self.text) - 1):
+            self.previous_char = self.current_char
             self.current_char = '\0'
         else:
+            self.previous_char = self.current_char
             self.current_char = self.text[self.pos]
 
     def peek(self, num=1):
@@ -42,7 +45,6 @@ class Lexer:
     def comment(self):
         while self.current_char != '\0' and self.current_char != '\n':
             self.advance()
-
         return Token(TokenType.COMMENT, Value("COMMENT"))
 
     def parse_number(self):
@@ -146,6 +148,73 @@ class Lexer:
             return Token(TokenType.UNTIL, Value('until'))
         else:
             return Token(TokenType.ID, Value(name))
+            
+    def parse_match_spec(self):
+        match_regex = ''
+        opts = ''
+        start_char = self.current_char
+        self.advance()
+        last_char = None
+        while self.current_char != start_char and last_char != '\\':
+            last_char = self.current_char
+            #if self.current_char == '\\' and last_char != '\\':
+            match_regex += self.current_char
+            self.advance()
+        print match_regex
+        self.advance()
+        while self.current_char.isalpha():
+            opts += self.current_char
+            self.advance()
+            
+        return Token(TokenType.MATCH_SPEC, Value({'type': 'm', 'spec': match_regex, 'opts': opts}))
+        
+    def parse_trans_spec(self):
+        search_spec = ''
+        repl_spec = ''
+        start_char = self.current_char
+        self.advance()
+        last_char = None
+        while self.current_char != start_char and last_char != '\\':
+            last_char = self.current_char
+            search_spec += self.current_char
+            self.advance()
+            
+        self.advance()
+        last_char = None
+        while self.current_char != start_char and last_char != '\\':
+            last_char = self.current_char
+            repl_spec += self.current_char
+            self.advance()
+            
+        self.advance()
+        return Token(TokenType.TRANS_SPEC, Value({'type': 'y', 'spec': search_spec, 'repl': repl_spec}))
+        
+    def parse_subs_spec(self):
+        search_spec = ''
+        repl_spec = ''
+        opts = ''
+        start_char = self.current_char
+        self.advance()
+        last_char = None
+        while self.current_char != start_char and last_char != '\\':
+            last_char = self.current_char
+            search_spec += self.current_char
+            self.advance()
+            
+        self.advance()
+        last_char = None
+        while self.current_char != start_char and last_char != '\\':
+            last_char = self.current_char
+            repl_spec += self.current_char
+            self.advance()
+            
+        self.advance()
+        while self.current_char.isalpha():
+            opts += self.current_char
+            self.advance()
+            
+        return Token(TokenType.SUBS_SPEC, Value({'type': 's', 'spec': search_spec, 'repl': repl_spec, 'opts': opts}))
+
 
     def get_next_token(self):
         while (self.current_char != '\0'):
@@ -173,7 +242,13 @@ class Lexer:
                 return self.comment()
 
             if (self.current_char.isdigit()):
-                return self.parse_number()
+                if self.pos > 0:
+                    # look back to see if prevous char was sigil
+                    # so we don't muck up $1, $2, ... as id's
+                    if self.peek(-1) not in [ '$', '@', '%' ]:
+                        return self.parse_number()
+                else:                
+                    return self.parse_number()
 
             if (self.current_char == '"'):
                 self.advance()
@@ -182,6 +257,24 @@ class Lexer:
             if (self.current_char == "'"):
                 self.advance()
                 return self.parse_literal_string()
+                
+            if (self.current_char == 'm' and not self.peek().isalpha()):
+                self.advance()
+                return self.parse_match_spec()
+                
+            if ((self.current_char == 'y'  and not self.peek().isalpha()) 
+                    or (self.current_char == 't' and self.peek() == 'r') and not self.peek(2).isalpha()):
+                if (self.current_char == 'y'):
+                    self.advance()
+                    return self.parse_trans_spec()
+                else:
+                    self.advance()
+                    self.advance()
+                    return self.parse_trans_spec()
+                    
+            if (self.current_char == 's' and not self.peek().isalpha()):
+                self.advance()
+                return self.parse_subs_spec()
 
             if (self.current_char.isalnum() or self.current_char == '_'):
                 if (self.current_char == 'e' and
@@ -223,8 +316,8 @@ class Lexer:
                     return self.get_id()
             
             if (self.current_char == '$' and self.peek() == ' '):
-                advance()
-                advance()
+                self.advance()
+                self.advance()
                 return
             
             if (self.current_char == '$' and (self.peek().isalnum() or self.peek() == '_' or self.peek() == '#')):
@@ -301,8 +394,7 @@ class Lexer:
                 return Token(TokenType.COLON, Value(':'))
                 
             if (self.current_char == '/'):
-                self.advance()
-                return Token(TokenType.SLASH, Value('/'))
+                return self.parse_match_spec()
 
             if (self.current_char == ';'):
                 self.advance()

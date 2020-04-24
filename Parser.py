@@ -131,7 +131,7 @@ class Parser:
         # in list context.  This is kinda hacky, but here we gotta discern
         # a mult assignment from a regular ole expression encased in parens
         # so we gotta look for an assignment op ahead of time
-        if (found_lparen or found_comma):
+        if ((found_lparen or found_comma)):
             ender = TokenType.ASSIGN
             if (found_lparen): 
                 self.eat(TokenType.LPAREN)
@@ -159,6 +159,7 @@ class Parser:
             self.eat(TokenType.ASSIGN)
             rval = self.consume_list()
             return UnpackAssignNode(vars, rval)
+            
         
         # wasn't a multi assignment, treat as expresion
         return self.check_for_conditional(self.expression())
@@ -236,9 +237,9 @@ class Parser:
         else:
             self.eat(TokenType.WHILE)
             invert_logic = False
-        #self.eat(TokenType.LPAREN)
+        self.eat(TokenType.LPAREN)
         expr = self.statement()
-        #self.eat(TokenType.RPAREN)
+        self.eat(TokenType.RPAREN)
         self.eat(TokenType.LCURLY)
         while_clause = []
         continue_clause = []
@@ -295,19 +296,24 @@ class Parser:
         self.eat(TokenType.ID)
         args = self.consume_list()
         return FuncCallNode(name, args)
-
+       
     def expression(self):
         result = self.term()
         while self.current_token.type in (
                 TokenType.PLUS,
                 TokenType.MINUS,
                 TokenType.STR_CONCAT,
+                TokenType.LOGAND,
+                TokenType.LOGOR,
                 TokenType.LSHIFT,
                 TokenType.RSHIFT):
 
             token = self.current_token
             self.eat(self.current_token.type)
-            result = BinOpNode(result, token.value, self.term())
+            if token.type in (TokenType.LOGAND, TokenType.LOGOR):
+                result = LogicalOpNode(token.value, result, self.term())
+            else:
+                result = BinOpNode(result, token.value, self.term())
 
         return result
 
@@ -319,8 +325,6 @@ class Parser:
                 TokenType.MUL,
                 TokenType.DIV,
                 TokenType.POW,
-                TokenType.LOGAND,
-                TokenType.LOGOR,
                 TokenType.AND,
                 TokenType.OR,
                 TokenType.XOR,
@@ -340,10 +344,7 @@ class Parser:
 
             token = self.current_token
             self.eat(self.current_token.type)
-            if token.type in (TokenType.LOGAND, TokenType.LOGOR):
-                result = LogicalOpNode(token.value, result, self.factor())
-            else:
-                result = BinOpNode(result, token.value, self.factor())
+            result = BinOpNode(result, token.value, self.factor())
 
         return result
 
@@ -376,7 +377,24 @@ class Parser:
                     return ScalarAssignNode(name, self.consume_list(), index_expr)
                 else:
                     return ScalarAssignNode(name, self.expression(), index_expr)
-                    
+            
+            elif (self.current_token.type == TokenType.MATCH):
+                self.eat(TokenType.MATCH)
+                if self.current_token.type == TokenType.MATCH_SPEC:
+                    spec = self.current_token.value
+                    self.eat(TokenType.MATCH_SPEC)
+                    return MatchNode(name, index_expr, spec)
+                elif (self.current_token.type == TokenType.TRANS_SPEC):
+                    spec = self.current_token.value
+                    self.eat(TokenType.TRANS_SPEC)
+                    return TransNode(name, index_expr, spec)
+                elif (self.current_token.type == TokenType.SUBS_SPEC):
+                    spec = self.current_token.value
+                    self.eat(TokenType.SUBS_SPEC)
+                    return SubsNode(name, index_expr, spec)
+                else:
+                    raise Exception ("Parser Error in / / expression!")
+            
             elif (self.current_token.type == TokenType.INCR):
                 self.eat(TokenType.INCR)
                 return ScalarIncrDecrNode(name, self.expression(), '+=')
@@ -395,6 +413,24 @@ class Parser:
                 
             else:
                 return ScalarVarNode(name, index_expr)
+        
+        # handle a Match spec by itself - on the $_ var
+        elif (token.type == TokenType.MATCH_SPEC):
+            spec = self.current_token.value
+            self.eat(TokenType.MATCH_SPEC)
+            return MatchNode(None, None, spec)
+        
+        # handle a Transliteration spec by itself - on the $_ var        
+        elif (token.type == TokenType.TRANS_SPEC):
+            spec = self.current_token.value
+            self.eat(TokenType.TRANS_SPEC)
+            return TransNode(None, None, spec)
+            
+        # handle a Substitution spec by itself - on the $_ var        
+        elif (token.type == TokenType.SUBS_SPEC):
+            spec = self.current_token.value
+            self.eat(TokenType.SUBS_SPEC)
+            return SubsNode(None, None, spec)
         
         # '@' sigil -> interprets rvalue expr in list context
         elif (token.type == TokenType.LIST):

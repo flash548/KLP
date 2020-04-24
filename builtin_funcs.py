@@ -26,19 +26,27 @@ class BuiltIns():
     def do_keys(vm, argv):
         # perl 1 allows a bareword for hash argument...
         if type(argv[0]) is Value:
-            vm.stack.push(Value(argv[0]._val.keys()))
+            key_arry = argv[0]._val.keys()
+            key_arry.reverse()
+            vm.stack.push(Value(key_arry))
         else:
             v = vm.get_variable(str(argv[0]), 'hash')
-            vm.stack.push(Value(v._val.keys()))
+            key_arry = v._val.keys()
+            key_arry.reverse()
+            vm.stack.push(Value(key_arry))
         
     @staticmethod
     def do_values(vm, argv):
         # perl 1 allows a bareword for hash argument...
         if type(argv[0]) is Value:
-            vm.stack.push(Value(argv[0]._val.values()))
+            val_arry = argv[0]._val.values()
+            val_arry.reverse()
+            vm.stack.push(Value(val_arry))
         else:
             v = vm.get_variable(str(argv[0]), 'hash')
-            vm.stack.push(Value(v._val.values()))
+            val_arry = v._val.values()
+            val_arry.reverse()
+            vm.stack.push(Value(val_arry))
         
     @staticmethod
     def do_each(vm, argv):

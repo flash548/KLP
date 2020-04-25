@@ -50,7 +50,7 @@ class VM:
         
         # if we get here, autovivify in perl parlance...
         if type == 'scalar':
-            return Value(0)  
+            return Value(None)  
         elif type == 'list':
             return Value([])
         elif type == 'hash':

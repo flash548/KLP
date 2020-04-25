@@ -21,6 +21,9 @@ class Parser:
             if tokType == TokenType.NEWLINE:
                 self.lineNumber += 1
             self.current_token = self.lex.get_next_token()
+            # eat comments that in the midst of statements that straddle a new line
+            while self.current_token.type == TokenType.COMMENT and self.current_token.type != TokenType.EOF:
+                self.current_token = self.lex.get_next_token()
         else:
             print "Token Eat error: " + tokType, self.current_token.type
             self.error()

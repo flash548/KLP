@@ -6,9 +6,13 @@ class Parser:
     def __init__(self, lexer):
         self.lineNumber = 1
         self.lex = lexer
+        self.prev_token = Token(TokenType.NONE, Value(''))
         self.current_token = self.lex.get_next_token()
         self.statement_modifier_tokens = [ TokenType.IF, TokenType.UNLESS,
             TokenType.UNTIL, TokenType.WHILE ];
+        
+        # used by spaceship op to tell whether to set $_ or not
+        self.in_loop_expr = False
 
     def error(self):
         raise Exception("Invalid syntax on line: " + str(self.lineNumber))
@@ -20,9 +24,11 @@ class Parser:
         if self.current_token.type == tokType:
             if tokType == TokenType.NEWLINE:
                 self.lineNumber += 1
+            self.prev_token = self.current_token
             self.current_token = self.lex.get_next_token()
             # eat comments that in the midst of statements that straddle a new line
-            while self.current_token.type == TokenType.COMMENT and self.current_token.type != TokenType.EOF:
+            while (self.current_token.type == TokenType.COMMENT 
+                    and self.current_token.type != TokenType.EOF):
                 self.current_token = self.lex.get_next_token()
         else:
             print "Token Eat error: " + tokType, self.current_token.type
@@ -112,17 +118,25 @@ class Parser:
         self.lex.anchor() # insurance policy 
         isAssign = False
         found_lparen = False
+        found_lparen_cnt = 0
         found_comma = False
-        tok = self.lex.get_next_token()
-        while (tok.type != TokenType.SEMICOLON):
+        tok = self.current_token
+        while (tok.type != TokenType.SEMICOLON and tok.type != TokenType.EOF):
+            if (self.prev_token != None): print "prev " + str(self.prev_token.type)
             if (tok.type == TokenType.COMMA):
                 found_comma = True
-            if (tok.type == TokenType.COMMA):
+            if (tok.type in [TokenType.SCALAR, TokenType.LIST, TokenType.HASH]
+                    and self.prev_token.type == TokenType.LPAREN):
+                found_lparen_cnt += 1
                 found_lparen = True
+            if (tok.type == TokenType.RPAREN):
+                found_lparen_cnt -= 1 # cxl out last lparen
             if (tok.type == TokenType.ASSIGN):
                 # this is an assign statement
+                found_lparen = (found_lparen and found_lparen_cnt == 0)
                 isAssign = True
                 break
+            self.prev_token = tok
             tok = self.lex.get_next_token()
         
         self.lex.rewind()
@@ -152,7 +166,6 @@ class Parser:
                     vars.append('@' + str(self.current_token.value))
                     self.eat(TokenType.ID)
                 else:
-                    print self.current_token.type
                     raise Exception("Error parsing unpack assignments")
                 
                 if self.current_token.type == TokenType.COMMA:
@@ -219,7 +232,9 @@ class Parser:
         self.eat(TokenType.SEMICOLON)
         cond = None
         if self.current_token.type != TokenType.SEMICOLON:
+            self.in_loop_expr = True
             cond = self.statement()
+            self.in_loop_expr = False
         self.eat(TokenType.SEMICOLON)
         end = None
         if self.current_token.type != TokenType.RPAREN:
@@ -241,7 +256,11 @@ class Parser:
             self.eat(TokenType.WHILE)
             invert_logic = False
         self.eat(TokenType.LPAREN)
+        
+        self.in_loop_expr = True
         expr = self.statement()
+        self.in_loop_expr = False
+        
         self.eat(TokenType.RPAREN)
         self.eat(TokenType.LCURLY)
         while_clause = []
@@ -288,7 +307,9 @@ class Parser:
         # check for do-while
         if (self.current_token.type == TokenType.WHILE):
             self.eat(TokenType.WHILE)
+            self.in_loop_expr = True
             expr = self.statement()
+            self.in_loop_expr = False
             #self.eat_end_of_statement()
             return DoWhileNode(do_body, expr)
         else:
@@ -321,7 +342,6 @@ class Parser:
         return result
 
     def term(self):
-    
         result = self.factor()
         
         while self.current_token.type in (
@@ -377,8 +397,10 @@ class Parser:
                 self.eat(TokenType.ASSIGN)
                 
                 if (self.current_token.type == TokenType.LPAREN):
+                    # array element assignment (or hash element)
                     return ScalarAssignNode(name, self.consume_list(), index_expr)
                 else:
+                    # regular scalar variable assignment
                     return ScalarAssignNode(name, self.expression(), index_expr)
             
             elif (self.current_token.type == TokenType.MATCH):
@@ -514,8 +536,16 @@ class Parser:
                 args = self.consume_list()
                 return BuiltInFunctionNode(name, args)
             else:
-                # its a BAREWORD, croak for now
+                # its a BAREWORD, interp as string
                 return ValueNode(str(name))
+                
+        elif (token.type == TokenType.SPACESHIP):
+            self.eat(TokenType.SPACESHIP)
+            return SpaceShipNode(token.value, self.in_loop_expr)
+            
+        elif (token.type == TokenType.BACKTICKS):
+            self.eat(TokenType.BACKTICKS)
+            return BackTicksNode(token.value)
                 
         elif (token.type == TokenType.INTERP_STR):
             self.eat(TokenType.INTERP_STR)

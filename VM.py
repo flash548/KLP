@@ -37,6 +37,9 @@ class VM:
             name = '@' + name
         elif type == 'hash':
             name = '%' + name
+        elif type == 'raw':
+            # for barewords
+            pass
         else:
             raise Exception("unknown variable type in get_variable()")
             
@@ -55,6 +58,8 @@ class VM:
             return Value([])
         elif type == 'hash':
             return Value({})
+        elif type == 'raw':
+            return Value(None)
         
 
     def set_variable(self, name, val, type):
@@ -64,6 +69,9 @@ class VM:
             name = '@' + name
         elif type == 'hash':
             name = '%' + name
+        elif type == 'raw':
+            # barewords
+            pass
         else:
             raise Exception("unknown variable type in set_variable()")
 
@@ -211,6 +219,10 @@ class VM:
             self.perform_user_func_call(str(instr.args[0]))
         elif (instr.opcode == "MULTI ASSIGN"):
             self.perform_multi_assign(instr.args[0], instr.args[1])
+        elif (instr.opcode == "DO SPACESHIP"):
+            self.perform_spaceship(instr.args[0], instr.args[1])
+        elif (instr.opcode == "DO BACKTICKS"):
+            self.perform_backticks(instr.args[0])
         elif (instr.opcode == "RET"):
             self.perform_return(instr.args[0])
         else:
@@ -222,6 +234,27 @@ class VM:
                 self.pc = i
                 return
         raise Exception("Could not find label: " + label)
+        
+    def perform_spaceship(self, val, in_loop):
+        v = self.get_variable(str(val), 'raw')
+        l = None
+        try:
+            l = v._val.readline()
+        except:
+            pass
+            
+        # set the $_ if we're supposed to
+        if (in_loop):
+            self.set_variable('_', Value(l), 'scalar')
+            
+        self.stack.push(Value(l))
+        
+    def perform_backticks(self, cmdstr):
+        self.perform_interpolated_push(cmdstr)
+
+        # get interp'd value back
+        interp_val = self.stack.pop()
+        BuiltIns.do_backticks(self, interp_val)
 
     def perform_op(self, op):
         _right = self.stack.pop()
@@ -426,6 +459,12 @@ class VM:
             BuiltIns.do_values(self, args)
         elif (name == 'each'):
             BuiltIns.do_each(self, args)
+        elif (name == 'eval'):
+            BuiltIns.do_eval(self, args)
+        elif (name == 'open'):
+            BuiltIns.do_open(self, args)
+        elif (name == 'close'):
+            BuiltIns.do_close(self, args)
         else:
             raise Exception("Undefined built-in: " + name)
             
@@ -519,4 +558,7 @@ class VM:
                 arry.push(stack_val)
         arry.reverse()
         self.set_variable(name, arry, 'list')
+        
+    def die(self):
+        sys.exit(1)
 

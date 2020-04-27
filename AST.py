@@ -26,6 +26,23 @@ class RootNode(AST):
             i.emit(vm)
 
 
+class SpaceShipNode(AST):
+
+    def __init__(self, val, in_loop):
+        self._val = val
+        self._in_loop = in_loop
+        
+    def emit(self, vm):
+        vm.append_instruction(Instruction("DO SPACESHIP", [ self._val, self._in_loop ]))
+        
+class BackTicksNode(AST):
+
+    def __init__(self, cmdstr):
+        self._cmdstr = cmdstr
+        
+    def emit(self, vm):
+        vm.append_instruction(Instruction("DO BACKTICKS", [ self._cmdstr ]))
+
 class InterpolatedValueNode(AST):
 
     def __init__(self, val):

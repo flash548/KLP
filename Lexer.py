@@ -41,7 +41,8 @@ class Lexer:
 
     def peek(self, num=1):
         if (self.pos + num < len(self.text)):
-            if (self.pos + num < 0): return self.text[0]
+            if (self.pos + num < 0): 
+                return self.text[0]
             return self.text[self.pos + num]
         else:
             return '\0'
@@ -159,24 +160,31 @@ class Lexer:
         else:
             return self.make_token(TokenType.ID, Value(name))
             
-    def parse_match_spec(self):
+    def parse_match_spec(self, with_m=False):
+        start_pos = self.pos
         match_regex = ''
         opts = ''
         start_char = self.current_char
+        char_count = 1  # have to have 2 start char's for a good pat
         self.advance()
         last_char = None
-        while self.current_char != start_char and last_char != '\\':
+        while (self.current_char != start_char and last_char != '\\') and self.current_char != '\0':
             last_char = self.current_char
             #if self.current_char == '\\' and last_char != '\\':
             match_regex += self.current_char
             self.advance()
-        print match_regex
+        if self.current_char == start_char:
+            char_count += 1
         self.advance()
         while self.current_char.isalpha():
             opts += self.current_char
             self.advance()
-            
-        return self.make_token(TokenType.MATCH_SPEC, Value({'type': 'm', 'spec': match_regex, 'opts': opts}))
+        
+        if char_count == 2:
+            return self.make_token(TokenType.MATCH_SPEC, Value({'type': 'm', 'spec': match_regex, 'opts': opts}))
+        else:
+            self.pos = start_pos # go back to the divide sign because its a math op, not a pattern
+            return None
         
     def parse_trans_spec(self):
         search_spec = ''
@@ -184,14 +192,14 @@ class Lexer:
         start_char = self.current_char
         self.advance()
         last_char = None
-        while self.current_char != start_char and last_char != '\\':
+        while (self.current_char != start_char and last_char != '\\') and self.current_char != '\0':
             last_char = self.current_char
             search_spec += self.current_char
             self.advance()
             
         self.advance()
         last_char = None
-        while self.current_char != start_char and last_char != '\\':
+        while (self.current_char != start_char and last_char != '\\') and self.current_char != '\0':
             last_char = self.current_char
             repl_spec += self.current_char
             self.advance()
@@ -206,14 +214,14 @@ class Lexer:
         start_char = self.current_char
         self.advance()
         last_char = None
-        while self.current_char != start_char and last_char != '\\':
+        while (self.current_char != start_char and last_char != '\\') and self.current_char != '\0':
             last_char = self.current_char
             search_spec += self.current_char
             self.advance()
             
         self.advance()
         last_char = None
-        while self.current_char != start_char and last_char != '\\':
+        while (self.current_char != start_char and last_char != '\\') and self.current_char != '\0':
             last_char = self.current_char
             repl_spec += self.current_char
             self.advance()
@@ -225,11 +233,19 @@ class Lexer:
             
         return self.make_token(TokenType.SUBS_SPEC, Value({'type': 's', 'spec': search_spec, 'repl': repl_spec, 'opts': opts}))
 
+    def parse_backticks(self):  
+        cmdstr = ''
+        while (self.current_char != '\0' and self.current_char != '`'):
+            cmdstr += self.current_char
+            self.advance()
+        
+        self.advance()        
+        return self.make_token(TokenType.BACKTICKS, Value(cmdstr))
 
     def get_next_token(self):
         while (self.current_char != '\0'):
             # first check if last char was SIGIL '$'
-            if ((self.peek(-1) == '$')):
+            if ((self.pos != 0 and self.peek(-1) == '$')):
                 if self.current_char == ' ':
                     self.advance()
                     return self.make_token(TokenType.ID, Value(' '))
@@ -420,11 +436,20 @@ class Lexer:
                 return self.make_token(TokenType.COLON, Value(':'))
                 
             if (self.current_char == '/'):
-                return self.parse_match_spec()
+                ret = self.parse_match_spec()
+                if ret == None:
+                    self.advance()
+                    return self.make_token(TokenType.DIV, Value('/'))
+                else:
+                    return ret
 
             if (self.current_char == ';'):
                 self.advance()
                 return self.make_token(TokenType.SEMICOLON, Value(';'))
+                
+            if (self.current_char == '`'):
+                self.advance()
+                return self.parse_backticks()
 
             if (self.current_char == '<'):
                 if (self.peek() == '='):
@@ -435,6 +460,17 @@ class Lexer:
                     self.advance()
                     self.advance()
                     return self.make_token(TokenType.LSHIFT, Value("<<"))
+                elif (self.peek().isalpha()):
+                    # check for spaceship
+                    i = 1
+                    bareword=''
+                    while (self.peek(i).isalpha()):
+                        bareword += self.peek(i)
+                        i += 1
+                    if self.peek(i) == '>':
+                        for j in range(i+1):
+                            self.advance()
+                        return self.make_token(TokenType.SPACESHIP, Value(bareword))
                 self.advance()
                 return self.make_token(TokenType.LT, Value("<"))
 
@@ -481,11 +517,7 @@ class Lexer:
                     return self.make_token(TokenType.POW, Value('**'))
                 else:
                     return self.make_token(TokenType.MUL, Value('*'))
-
-            if (self.current_char == '/'):
-                self.advance()
-                return self.make_token(TokenType.DIV, Value('/'))
-
+                    
             if (self.current_char == '('):
                 self.advance()
                 return self.make_token(TokenType.LPAREN, Value('('))

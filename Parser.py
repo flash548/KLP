@@ -10,7 +10,7 @@ class Parser:
         self.current_token = self.lex.get_next_token()
         self.statement_modifier_tokens = [ TokenType.IF, TokenType.UNLESS,
             TokenType.UNTIL, TokenType.WHILE ];
-        
+        self.last_label_name = None
         # used by spaceship op to tell whether to set $_ or not
         self.in_loop_expr = False
 
@@ -79,12 +79,30 @@ class Parser:
             self.eat(TokenType.LCURLY)
             return self.statement_list()
             self.eat(TokenType.RCURLY)
+        elif self.current_token.type == TokenType.LABEL:
+            name = str(self.current_token.value)
+            self.eat(TokenType.LABEL)
+            if self.current_token.type in [ TokenType.WHILE, TokenType.UNTIL, TokenType.FOR ]:
+                # no nothing for a labeled loop, we'll use the name later
+                self.last_label_name = name
+                return AST()
+            
+            # generic label statement
+            return LabelNode(name)
         elif self.current_token.type == TokenType.LAST:
             self.eat(TokenType.LAST)
-            return self.check_for_conditional(LastNode())
+            label = None
+            if self.current_token.type == TokenType.ID:
+                label = str(self.current_token.value)
+                self.eat(TokenType.ID)
+            return self.check_for_conditional(LastNode(label))
         elif self.current_token.type == TokenType.NEXT:
             self.eat(TokenType.NEXT)
-            return self.check_for_conditional(NextNode())
+            label = None
+            if self.current_token.type == TokenType.ID:
+                label = str(self.current_token.value)
+                self.eat(TokenType.ID)
+            return self.check_for_conditional(NextNode(label))
         else:
             return self.check_for_conditional(self.expression())
 
@@ -246,7 +264,9 @@ class Parser:
             body.append(self.statement())
             self.eat_end_of_statement()
         self.eat(TokenType.RCURLY)
-        return ForNode(initial, cond, end, body)
+        fnode = ForNode(initial, cond, end, body, self.last_label_name)
+        #self.last_label_name = None
+        return fnode
 
     def while_statement(self):
         if (self.current_token.type == TokenType.UNTIL):
@@ -276,7 +296,9 @@ class Parser:
                 continue_clause.append(self.statement())
                 self.eat_end_of_statement()
             self.eat(TokenType.RCURLY)
-        return WhileNode(expr, while_clause, continue_clause, invert_logic)
+        wnode = WhileNode(expr, while_clause, continue_clause, invert_logic, self.last_label_name)
+        #self.last_label_name = None
+        return wnode
 
     def function_declare_statement(self):
         self.eat(TokenType.FUNCTION_DECLARE)
@@ -533,8 +555,17 @@ class Parser:
             self.eat(TokenType.ID)
             if (str(name) in TokenType.BUILTINS):
                 # its a builtin
-                args = self.consume_list()
-                return BuiltInFunctionNode(name, args)
+                if (str(name) == 'print'
+                        and self.current_token.type == TokenType.ID
+                        and str(self.current_token.value) not in TokenType.BUILTINS):
+                    # must be a FILEHANDLE BAREWORD
+                    fh = str(self.current_token.value)
+                    self.eat(TokenType.ID)
+                    args = self.consume_list()
+                    return BuiltInFunctionNode(name, fh, args)
+                else:
+                    args = self.consume_list()
+                    return BuiltInFunctionNode(name, None, args)
             else:
                 # its a BAREWORD, interp as string
                 return ValueNode(str(name))

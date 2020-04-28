@@ -189,10 +189,13 @@ class VM:
             self.perform_push_var(str(instr.args[0]), instr.args[1], 'list')
         elif (instr.opcode == "PUSH ANON LIST"):
             self.perform_push_anon_list(instr.args[0])
+            
         elif (instr.opcode == "GOTO END LOOP"):
-            self.go_to_label("END_LOOP")
+            self.go_to_loop_label("END_LOOP", instr.args[0])
+            
         elif (instr.opcode == "GOTO CONTINUE LOOP"):
-            self.go_to_label("CONTINUE_LOOP")
+            self.go_to_loop_label("CONTINUE_LOOP", instr.args[0])
+            
         elif (instr.opcode == "BNZ"):
             if (self.stack.pop().boolify()):
                 self.pc = int(instr.args[0])
@@ -214,7 +217,7 @@ class VM:
         elif (instr.opcode == "CALLUSER"):
             self.perform_call_user_func(str(instr.args[0]))
         elif (instr.opcode == "CALL"):
-            self.perform_func_call(str(instr.args[0]), instr.args[1])
+            self.perform_func_call(str(instr.args[0]), instr.args[1], instr.args[2])
         elif (instr.opcode == "CALLUSER"):
             self.perform_user_func_call(str(instr.args[0]))
         elif (instr.opcode == "MULTI ASSIGN"):
@@ -228,11 +231,24 @@ class VM:
         else:
             raise Exception("Unknown Instruction: " + instr.opcode)
             
-    def go_to_label(self, label):
-        for i in range(self.pc, len(self.pgm_stack)):
-            if self.pgm_stack[i].opcode == "LABEL" and self.pgm_stack[i].args[0] == label:
-                self.pc = i
+    def go_to_loop_label(self, label, loop_name):
+        if loop_name == None:
+            for i in range(self.pc, len(self.pgm_stack)):
+                if self.pgm_stack[i].opcode == "LABEL" and self.pgm_stack[i].args[0] == label:
+                    self.pc = i
+                    return
+        else:
+            # find the "extreme last" occurence of loop name in the stack
+            occurences = []
+            for i in range(self.pc, len(self.pgm_stack)):
+                if (self.pgm_stack[i].opcode == "LABEL" 
+                        and self.pgm_stack[i].args[0] == label
+                        and self.pgm_stack[i].args[1] == loop_name):
+                    occurences.append(i)
+            if len(occurences) > 0:
+                self.pc = occurences[-1]
                 return
+                
         raise Exception("Could not find label: " + label)
         
     def perform_spaceship(self, val, in_loop):
@@ -442,13 +458,16 @@ class VM:
         self.set_variable(name, v, 'scalar')
             
 
-    def perform_func_call(self, name, argslen):
+    def perform_func_call(self, name, fh, argslen):
         args = []
         for i in range(0, argslen):
             args.append(self.stack.pop())            
         
         if (name == "print"): 
-            BuiltIns.do_print(self, args)
+            # print may or may not have a FH with it
+            BuiltIns.do_print(self, fh, args)
+        elif (name == 'die'):
+            BuiltIns.do_die(self, args)
         elif (name == 'length'):
             BuiltIns.do_length(self, args)
         elif (name == 'join'):

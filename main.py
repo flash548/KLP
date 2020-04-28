@@ -7,12 +7,17 @@ print "\n------- NEW RUN -------\n"
 
 l = Lexer("""
 
-$i = 0;
-do {
-    print "$i\n";
-}
-until ($i++ > 10);
 
+while(1) {
+print "outer\n";
+test:
+while(1) {
+    print "inner\n";
+    next test;
+}
+print "here\n";
+}
+print "done\n";
 """)
 
 p = Parser(l)

@@ -6,12 +6,19 @@ import os
 class BuiltIns():
 
     @staticmethod
-    def do_print(vm, argv):
+    def do_print(vm, fh, argv):
         if (len(argv) > 0):
-            sys.stdout.write((argv[0]).stringify())
+            if fh == None:
+                sys.stdout.write((argv[0]).stringify())
+            else:
+                vm.dump_current_scope()
+                vm.get_variable(fh, 'raw')._val.write((argv[0]).stringify())
         else:
             # print $_
-            sys.stdout.write(vm.get_variable('_', 'scalar').stringify())
+            if fh == None:
+                sys.stdout.write(vm.get_variable('_', 'scalar').stringify())
+            else:
+                vm.get_variable(fh, 'raw')._val.write(vm.get_variable('_', 'scalar').stringify())
             
         vm.stack.push(Value(1))
         

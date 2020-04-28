@@ -135,6 +135,11 @@ class Lexer:
             name += self.current_char
             self.advance()
 
+        # check to see if its a label first
+        if self.current_char == ':':
+            self.advance()
+            return self.make_token(TokenType.LABEL, Value(name))
+            
         if (name == "if"):
             return self.make_token(TokenType.IF, Value('if'))
         elif (name == "elsif"):

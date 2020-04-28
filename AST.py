@@ -127,17 +127,25 @@ class UnOpNode(AST):
         self._v.emit(vm)
         vm.append_instruction(Instruction("UNOP", [str(self._op)]))
 
+class LabelNode(AST):
+
+    def __init(self, name):
+        self._name = name
+        
+    def emit(self, vm):
+        vm.append_instruction(Instruction("LABEL", [self._name]))
 
 class BuiltInFunctionNode(AST):
 
-    def __init__(self, name, args):
+    def __init__(self, name, fh, args):
         self._name = name
+        self._fh = fh
         self._args = args
 
     def emit(self, vm):
         for i in self._args:
             i.emit(vm)
-        vm.append_instruction(Instruction("CALL", [self._name, len(self._args)]))
+        vm.append_instruction(Instruction("CALL", [self._name, self._fh, len(self._args)]))
         
 class FuncCallNode(AST):
 
@@ -276,11 +284,12 @@ class IfNode(AST):
 
 class ForNode(AST):
 
-    def __init__(self, initial, cond, end_expr, body):
+    def __init__(self, initial, cond, end_expr, body, name):
         self._initial = initial
         self._cond = cond
         self._end_expr = end_expr
         self._body = body
+        self._name = name
         
     def emit(self, vm):
         if self._initial != None:
@@ -294,20 +303,21 @@ class ForNode(AST):
             i.emit(vm)
         if self._end_expr != None:
             self._end_expr.emit(vm)
-        vm.append_instruction(Instruction("LABEL", [ "CONTINUE_LOOP" ]))
+        vm.append_instruction(Instruction("LABEL", [ "CONTINUE_LOOP", self._name ]))
         vm.append_instruction(Instruction("JMP", [address_anchor]))
-        vm.append_instruction(Instruction("LABEL", [ "END_LOOP" ]))
+        vm.append_instruction(Instruction("LABEL", [ "END_LOOP", self._name ]))
         if self._cond != None:
             vm.pgm_stack[branch_anchor] = Instruction("BZ", [vm.get_current_address()])
 
 
 class WhileNode(AST):
 
-    def __init__(self, expr, body, continue_body, invert_logic):
+    def __init__(self, expr, body, continue_body, invert_logic, name):
         self._expr = expr
         self._body = body
         self._continue_body = continue_body
         self._invert_logic = invert_logic
+        self._name = name
 
     def emit(self, vm):
         address_anchor = vm.get_current_address()
@@ -320,9 +330,9 @@ class WhileNode(AST):
             i.emit(vm)
         for i in self._continue_body:
             i.emit(vm)
-        vm.append_instruction(Instruction("LABEL", [ "CONTINUE_LOOP" ]))
+        vm.append_instruction(Instruction("LABEL", [ "CONTINUE_LOOP", self._name ]))
         vm.append_instruction(Instruction("JMP", [address_anchor]))
-        vm.append_instruction(Instruction("LABEL", [ "END_LOOP" ]))
+        vm.append_instruction(Instruction("LABEL", [ "END_LOOP", self._name ]))
         vm.pgm_stack[branch_anchor] = Instruction("BZ", [vm.get_current_address()])
         
 class DoWhileNode(AST):
@@ -354,14 +364,20 @@ class DoStatementNode(AST):
         
         
 class LastNode(AST):
-
+    
+    def __init__(self, name=None):
+        self._name = name
+        
     def emit(self, vm):
-        vm.append_instruction(Instruction("GOTO END LOOP", [ None ]))
+        vm.append_instruction(Instruction("GOTO END LOOP", [ self._name ]))
         
 class NextNode(AST):
 
+    def __init__(self, name=None):
+        self._name = name
+    
     def emit(self, vm):
-        vm.append_instruction(Instruction("GOTO CONTINUE LOOP", [ None ]))
+        vm.append_instruction(Instruction("GOTO CONTINUE LOOP", [ self._name ]))
 
 class IndexVar(AST):
 

@@ -60,6 +60,7 @@ class TokenType:
     FOR = 'FOR'
     NEXT = 'NEXT'
     LAST = 'LAST'
+    REDO = 'REDO'
     LABEL = 'LABEL'
     CONTINUE = 'CONTINUE'
     UNTIL = 'UNTIL'
@@ -106,5 +107,6 @@ class TokenType:
         'eval',
         'open',
         'close',
-        'die'
+        'die',
+        'eof',
     ]

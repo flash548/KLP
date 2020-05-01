@@ -94,15 +94,25 @@ class LogicalOpNode(AST):
             branch_anchor = vm.get_current_address()
             vm.append_instruction(Instruction("BZ", [None])) # fill this in later
             self._right.emit(vm)
+            go_to_end = vm.get_current_address()
+            vm.append_instruction(Instruction("JMP", [None]))
             location = vm.get_current_address()
+            vm.append_instruction(Instruction("PUSH CONST", [Value(0)]))
             vm.pgm_stack[branch_anchor].args = [ location ]
+            location = vm.get_current_address()
+            vm.pgm_stack[go_to_end].args = [ location ]
         else:
             self._left.emit(vm)
             branch_anchor = vm.get_current_address()
             vm.append_instruction(Instruction("BNZ", [None])) # fill this in later
             self._right.emit(vm)
+            go_to_end = vm.get_current_address()
+            vm.append_instruction(Instruction("JMP", [None]))
             location = vm.get_current_address()
+            vm.append_instruction(Instruction("PUSH CONST", [Value(1)]))
             vm.pgm_stack[branch_anchor].args = [ location ]
+            location = vm.get_current_address()
+            vm.pgm_stack[go_to_end].args = [ location ]
 
 class BinOpNode(AST):
 
@@ -166,10 +176,11 @@ class FuncCallNode(AST):
         
 class MatchNode(AST):
 
-    def __init__(self, name, index_expr, match_spec):
+    def __init__(self, name, index_expr, match_spec, invert=False):
         self._name = name
         self._expr = index_expr
         self._spec = match_spec
+        self._invert = invert
     
     def emit(self, vm):
         has_expr = False
@@ -180,14 +191,15 @@ class MatchNode(AST):
         if self._name == None:
             self._name = '_'
            
-        vm.append_instruction(Instruction("DO MATCH", [ self._name, has_expr, self._spec ]))
+        vm.append_instruction(Instruction("DO MATCH", [ self._name, has_expr, self._spec, self._invert ]))
         
 class TransNode(AST):
 
-    def __init__(self, name, index_expr, trans_spec):
+    def __init__(self, name, index_expr, trans_spec, invert=False):
         self._name = name
         self._expr = index_expr
         self._spec = trans_spec
+        self._invert = invert
     
     def emit(self, vm):
         has_expr = False
@@ -198,14 +210,15 @@ class TransNode(AST):
         if self._name == None:
             self._name = '_'
            
-        vm.append_instruction(Instruction("DO TRANS", [ self._name, has_expr, self._spec ]))
+        vm.append_instruction(Instruction("DO TRANS", [ self._name, has_expr, self._spec, self._invert ]))
         
 class SubsNode(AST):
 
-    def __init__(self, name, index_expr, subs_spec):
+    def __init__(self, name, index_expr, subs_spec, invert):
         self._name = name
         self._expr = index_expr
         self._spec = subs_spec
+        self._invert = invert
     
     def emit(self, vm):
         has_expr = False
@@ -216,7 +229,7 @@ class SubsNode(AST):
         if self._name == None:
             self._name = '_'
            
-        vm.append_instruction(Instruction("DO SUBS", [ self._name, has_expr, self._spec ]))
+        vm.append_instruction(Instruction("DO SUBS", [ self._name, has_expr, self._spec, self._invert ]))
 
 class IndexNode(AST):
 
@@ -299,11 +312,12 @@ class ForNode(AST):
             self._cond.emit(vm)
             branch_anchor = vm.get_current_address()
             vm.append_instruction(Instruction("BZ", [ None ]))
+        start_of_code = vm.get_current_address()
         for i in self._body:
             i.emit(vm)
         if self._end_expr != None:
             self._end_expr.emit(vm)
-        vm.append_instruction(Instruction("LABEL", [ "CONTINUE_LOOP", self._name ]))
+        vm.append_instruction(Instruction("LABEL", [ "CONTINUE_LOOP", start_of_code, self._name ]))
         vm.append_instruction(Instruction("JMP", [address_anchor]))
         vm.append_instruction(Instruction("LABEL", [ "END_LOOP", self._name ]))
         if self._cond != None:
@@ -326,11 +340,12 @@ class WhileNode(AST):
             vm.append_instruction(Instruction("UNOP", [ "!" ]))
         branch_anchor = vm.get_current_address()
         vm.append_instruction(Instruction("BZ", [ None ]))
+        start_of_code = vm.get_current_address()
         for i in self._body:
             i.emit(vm)
+        vm.append_instruction(Instruction("LABEL", [ "CONTINUE_LOOP", start_of_code, self._name ]))
         for i in self._continue_body:
             i.emit(vm)
-        vm.append_instruction(Instruction("LABEL", [ "CONTINUE_LOOP", self._name ]))
         vm.append_instruction(Instruction("JMP", [address_anchor]))
         vm.append_instruction(Instruction("LABEL", [ "END_LOOP", self._name ]))
         vm.pgm_stack[branch_anchor] = Instruction("BZ", [vm.get_current_address()])
@@ -378,6 +393,14 @@ class NextNode(AST):
     
     def emit(self, vm):
         vm.append_instruction(Instruction("GOTO CONTINUE LOOP", [ self._name ]))
+        
+class RedoNode(AST):
+
+    def __init__(self, name=None):
+        self._name = name
+    
+    def emit(self, vm):
+        vm.append_instruction(Instruction("GOTO REDO LOOP", [ self._name ]))
 
 class IndexVar(AST):
 

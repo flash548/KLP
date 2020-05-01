@@ -78,7 +78,7 @@ def transliteration(in_str, spec, repl):
         new_str += repl_actual[idx]
     return new_str
 
-def do_trans_op(vm, name, index_expr, spec):
+def do_trans_op(vm, name, index_expr, spec, invert):
     v = None
     idx = None
     cxt = None
@@ -113,12 +113,12 @@ def do_trans_op(vm, name, index_expr, spec):
     else:
         vm.set_variable(name, Value(ret), 'scalar')
         
-    if (ret):
+    if (bool(ret) ^ invert):
         vm.stack.push(Value(1))
     else:
         vm.stack.push(Value(0))
         
-def do_subs_op(vm, name, index_expr, spec):
+def do_subs_op(vm, name, index_expr, spec, invert):
     var = None
     v = None
     idx = None
@@ -154,7 +154,7 @@ def do_subs_op(vm, name, index_expr, spec):
         for i in range(0, ret.lastindex):
             vm.set_variable(str(i+1), Value(ret.group(i+1)), 'scalar')
     
-    if (ret and ret.group(0) != ''):
+    if ((bool(ret) ^ invert) and ret.group(0) != ''):
         mod_string = None
         if ('g' in options):
             mod_string = re_obj.sub(repl, v.stringify(), 0)
@@ -175,7 +175,7 @@ def do_subs_op(vm, name, index_expr, spec):
     else:
         vm.stack.push(Value(0))
     
-def do_match_op(vm, name, index_expr, spec):
+def do_match_op(vm, name, index_expr, spec, invert):
     v = None
     if name != None:
         if (index_expr == True):
@@ -200,7 +200,7 @@ def do_match_op(vm, name, index_expr, spec):
         for i in range(0, ret.lastindex):
             vm.set_variable(str(i+1), Value(ret.group(i+1)), 'scalar')
         
-    if (ret):
+    if (bool(ret) ^ invert):
         vm.stack.push(Value(1))
     else:
         vm.stack.push(Value(0))

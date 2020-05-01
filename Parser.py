@@ -16,6 +16,35 @@ class Parser:
 
     def error(self):
         raise Exception("Invalid syntax on line: " + str(self.lineNumber))
+        
+    def is_an_operator(self, tok):
+        return tok in [ TokenType.PLUS,
+                    TokenType.MINUS,
+                    TokenType.STR_CONCAT,
+                    TokenType.LOGAND,
+                    TokenType.LOGOR,
+                    TokenType.LSHIFT,
+                    TokenType.RSHIFT,
+                    TokenType.MUL,
+                    TokenType.DIV,
+                    TokenType.POW,
+                    TokenType.AND,
+                    TokenType.OR,
+                    TokenType.XOR,
+                    TokenType.GT,
+                    TokenType.GTE,
+                    TokenType.LT,
+                    TokenType.LTE,
+                    TokenType.EQ,
+                    TokenType.NEQ,
+                    TokenType.STR_EQ,
+                    TokenType.STR_NEQ,
+                    TokenType.STR_LT,
+                    TokenType.STR_LE,
+                    TokenType.STR_GT,
+                    TokenType.STR_GE,
+                    TokenType.MOD
+        ]
 
     def parse(self):
         return expr()
@@ -65,20 +94,27 @@ class Parser:
         if self.current_token.type == TokenType.COMMENT:
             self.eat(TokenType.COMMENT)
             return AST()
+            
         elif self.current_token.type in [TokenType.SCALAR, TokenType.LIST, TokenType.LPAREN]:
             return self.assignment()
+            
         elif self.current_token.type == TokenType.FUNCTION_DECLARE:
             return self.function_declare_statement()
+            
         elif self.current_token.type in [TokenType.IF, TokenType.UNLESS]:
             return self.if_statement()
+            
         elif self.current_token.type in [TokenType.WHILE, TokenType.UNTIL]:
             return self.while_statement()
+            
         elif self.current_token.type == TokenType.FOR:
             return self.for_statement()
+            
         elif self.current_token.type == TokenType.LCURLY:
             self.eat(TokenType.LCURLY)
             return self.statement_list()
             self.eat(TokenType.RCURLY)
+            
         elif self.current_token.type == TokenType.LABEL:
             name = str(self.current_token.value)
             self.eat(TokenType.LABEL)
@@ -86,9 +122,9 @@ class Parser:
                 # no nothing for a labeled loop, we'll use the name later
                 self.last_label_name = name
                 return AST()
-            
             # generic label statement
             return LabelNode(name)
+            
         elif self.current_token.type == TokenType.LAST:
             self.eat(TokenType.LAST)
             label = None
@@ -96,6 +132,7 @@ class Parser:
                 label = str(self.current_token.value)
                 self.eat(TokenType.ID)
             return self.check_for_conditional(LastNode(label))
+            
         elif self.current_token.type == TokenType.NEXT:
             self.eat(TokenType.NEXT)
             label = None
@@ -103,6 +140,15 @@ class Parser:
                 label = str(self.current_token.value)
                 self.eat(TokenType.ID)
             return self.check_for_conditional(NextNode(label))
+            
+        elif self.current_token.type == TokenType.REDO:
+            self.eat(TokenType.REDO)
+            label = None
+            if self.current_token.type == TokenType.ID:
+                label = str(self.current_token.value)
+                self.eat(TokenType.ID)
+            return self.check_for_conditional(RedoNode(label))
+            
         else:
             return self.check_for_conditional(self.expression())
 
@@ -140,7 +186,6 @@ class Parser:
         found_comma = False
         tok = self.current_token
         while (tok.type != TokenType.SEMICOLON and tok.type != TokenType.EOF):
-            if (self.prev_token != None): print "prev " + str(self.prev_token.type)
             if (tok.type == TokenType.COMMA):
                 found_comma = True
             if (tok.type in [TokenType.SCALAR, TokenType.LIST, TokenType.HASH]
@@ -425,20 +470,26 @@ class Parser:
                     # regular scalar variable assignment
                     return ScalarAssignNode(name, self.expression(), index_expr)
             
-            elif (self.current_token.type == TokenType.MATCH):
-                self.eat(TokenType.MATCH)
+            elif (self.current_token.type in [ TokenType.MATCH, TokenType.NOT_MATCH]):
+                invert = False
+                if self.current_token.type == TokenType.MATCH:
+                    self.eat(TokenType.MATCH)
+                else:
+                    self.eat(TokenType.NOT_MATCH)
+                    invert = True
+                    
                 if self.current_token.type == TokenType.MATCH_SPEC:
                     spec = self.current_token.value
                     self.eat(TokenType.MATCH_SPEC)
-                    return MatchNode(name, index_expr, spec)
+                    return MatchNode(name, index_expr, spec, invert)
                 elif (self.current_token.type == TokenType.TRANS_SPEC):
                     spec = self.current_token.value
                     self.eat(TokenType.TRANS_SPEC)
-                    return TransNode(name, index_expr, spec)
+                    return TransNode(name, index_expr, spec, invert)
                 elif (self.current_token.type == TokenType.SUBS_SPEC):
                     spec = self.current_token.value
                     self.eat(TokenType.SUBS_SPEC)
-                    return SubsNode(name, index_expr, spec)
+                    return SubsNode(name, index_expr, spec, invert)
                 else:
                     raise Exception ("Parser Error in / / expression!")
             
@@ -620,10 +671,11 @@ class Parser:
                 self.eat(TokenType.LPAREN)
         else:
             end_token = ender
-            
+  
         while ((self.current_token.type != end_token) and
                 (self.current_token.type != TokenType.SEMICOLON) and
                 (self.current_token.type != TokenType.RPAREN) and
+                (not self.is_an_operator(self.current_token.type)) and
                 (self.current_token.type not in self.statement_modifier_tokens)):
             list_elems.append(self.expression())
             if (self.current_token.type == TokenType.COMMA):

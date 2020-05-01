@@ -11,7 +11,6 @@ class BuiltIns():
             if fh == None:
                 sys.stdout.write((argv[0]).stringify())
             else:
-                vm.dump_current_scope()
                 vm.get_variable(fh, 'raw')._val.write((argv[0]).stringify())
         else:
             # print $_
@@ -150,7 +149,8 @@ class BuiltIns():
             
         vm.set_variable('!', Value(error), 'scalar')
         vm.set_variable(handle, Value(fp), 'raw')
-                
+        vm.last_fh_read = handle
+        
         # return success or failure
         vm.stack.push(Value(1) if success else Value(0))
         
@@ -170,5 +170,28 @@ class BuiltIns():
         vm.set_variable(handle, Value(fp), 'raw')        
         vm.stack.push(Value(1) if success else Value(0))
         
+    @staticmethod
+    def do_eof(vm, argv):
+        handle = None
+        fp = None
+        if len(argv) > 0:
+            handle = str(argv[0])
+            fp = vm.get_variable(handle, 'raw')
+        else:
+            fp = vm.get_variable(str(vm.last_fh_read), 'raw')
+         
+        if (fp._val.closed):
+            vm.stack.push(Value(1))
+            return
+            
+        pos = fp._val.tell()
+        a = fp._val.readline()
+        if (a == ''):
+            fp._val.seek(pos)
+            vm.stack.push(Value(1))
+        else:
+            fp._val.seek(pos)
+            vm.stack.push(Value(0))
+            
 
         

@@ -158,6 +158,10 @@ class Lexer:
             return self.make_token(TokenType.DO, Value('do'))
         elif (name == "last"):
             return self.make_token(TokenType.LAST, Value('last'))
+        elif (name == "next"):
+            return self.make_token(TokenType.NEXT, Value('next'))
+        elif (name == "redo"):
+            return self.make_token(TokenType.REDO, Value('redo'))
         elif (name == "continue"):
             return self.make_token(TokenType.CONTINUE, Value('continue'))
         elif (name == "until"):
@@ -331,12 +335,7 @@ class Lexer:
                       self.peek() == 'e' and self.peek(2).isspace()):
                     self.advance()
                     self.advance()
-                    if self.current_char.isspace():
-                        return self.make_token(TokenType.STR_NEQ, Value('ne'))
-                    elif self.current_char == 'x' and self.peek() == 't':
-                        self.advance()
-                        self.advance()
-                        return self.make_token(TokenType.NEXT, Value('next'))
+                    return self.make_token(TokenType.STR_NEQ, Value('ne'))
                 elif (self.current_char == 'l' and
                       self.peek() == 't' and self.peek(2).isspace()):
                     self.advance()

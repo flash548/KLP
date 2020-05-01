@@ -11,6 +11,7 @@ class Instruction:
         if (not (isinstance(args, list))):
             raise Exception("Instruction args must be a list! OPCODE: " + self.opcode)
         self.args = args
+        self.last_fh_read = None
 
     def __str__(self):
         s = self.opcode + ": "
@@ -165,28 +166,40 @@ class VM:
     
         if (instr.opcode == "POP"):
             self.stack.pop()
+            
         elif (instr.opcode == "LABEL"):
             pass
+            
         elif (instr.opcode == "BINOP"):
             self.perform_op(str(instr.args[0]))
+            
         elif (instr.opcode == "UNOP"):
             self.perform_unop(str(instr.args[0]))
+            
         elif (instr.opcode == "DO MATCH"):
-            do_match_op(self, str(instr.args[0]), instr.args[1], instr.args[2])
+            do_match_op(self, str(instr.args[0]), instr.args[1], instr.args[2], instr.args[3])
+            
         elif (instr.opcode == "DO TRANS"):
-            do_trans_op(self, str(instr.args[0]), instr.args[1], instr.args[2])
+            do_trans_op(self, str(instr.args[0]), instr.args[1], instr.args[2], instr.args[3])
+            
         elif (instr.opcode == "DO SUBS"):
-            do_subs_op(self, str(instr.args[0]), instr.args[1], instr.args[2])
+            do_subs_op(self, str(instr.args[0]), instr.args[1], instr.args[2], instr.args[3])
+            
         elif (instr.opcode == "PUSH CONST"):
             self.stack.push(instr.args[0])
+            
         elif (instr.opcode == "PUSH INTERP CONST"):
             self.perform_interpolated_push(instr.args[0])
+            
         elif (instr.opcode == "INDEX VAR"):
             self.perform_var_index(args[0])
+            
         elif (instr.opcode == "PUSH SCALAR VAR"):
             self.perform_push_var(str(instr.args[0]), instr.args[1], 'scalar')
+            
         elif (instr.opcode == "PUSH LIST VAR"):
             self.perform_push_var(str(instr.args[0]), instr.args[1], 'list')
+            
         elif (instr.opcode == "PUSH ANON LIST"):
             self.perform_push_anon_list(instr.args[0])
             
@@ -196,38 +209,53 @@ class VM:
         elif (instr.opcode == "GOTO CONTINUE LOOP"):
             self.go_to_loop_label("CONTINUE_LOOP", instr.args[0])
             
+        elif (instr.opcode == "GOTO REDO LOOP"):
+            self.go_to_loop_label("CONTINUE_LOOP", instr.args[0])
+            
         elif (instr.opcode == "BNZ"):
             if (self.stack.pop().boolify()):
                 self.pc = int(instr.args[0])
+                
         elif (instr.opcode == "BZ"):
             if (not self.stack.pop().boolify()):
                 self.pc = int(instr.args[0])
+                
         elif (instr.opcode == "JMP"):
             self.pc = int(instr.args[0])
+            
         elif (instr.opcode == "SCALAR ASSIGN"):
             self.perform_scalar_assign(instr.args[0], instr.args[1])
+            
         elif (instr.opcode == "PUSH LIST MAX INDEX"):
             self.perform_get_list_max_index(instr.args[0])
+            
         elif (instr.opcode == "INCR SCALAR"):
             self.perform_incr_decr(instr.args[0], True)
+            
         elif (instr.opcode == "DECR SCALAR"):
             self.perform_incr_decr(instr.args[0], False)
+            
         elif (instr.opcode == "LIST ASSIGN"):
             self.perform_list_assign(instr.args[0], instr.args[1])
+            
         elif (instr.opcode == "CALLUSER"):
             self.perform_call_user_func(str(instr.args[0]))
+            
         elif (instr.opcode == "CALL"):
             self.perform_func_call(str(instr.args[0]), instr.args[1], instr.args[2])
+            
         elif (instr.opcode == "CALLUSER"):
             self.perform_user_func_call(str(instr.args[0]))
+            
         elif (instr.opcode == "MULTI ASSIGN"):
             self.perform_multi_assign(instr.args[0], instr.args[1])
+            
         elif (instr.opcode == "DO SPACESHIP"):
             self.perform_spaceship(instr.args[0], instr.args[1])
+            
         elif (instr.opcode == "DO BACKTICKS"):
             self.perform_backticks(instr.args[0])
-        elif (instr.opcode == "RET"):
-            self.perform_return(instr.args[0])
+
         else:
             raise Exception("Unknown Instruction: " + instr.opcode)
             
@@ -240,11 +268,25 @@ class VM:
         else:
             # find the "extreme last" occurence of loop name in the stack
             occurences = []
-            for i in range(self.pc, len(self.pgm_stack)):
-                if (self.pgm_stack[i].opcode == "LABEL" 
-                        and self.pgm_stack[i].args[0] == label
-                        and self.pgm_stack[i].args[1] == loop_name):
-                    occurences.append(i)
+            if label == "CONTINUE_LOOP":
+                for i in range(self.pc, len(self.pgm_stack)):
+                    if (self.pgm_stack[i].opcode == "LABEL" 
+                            and self.pgm_stack[i].args[0] == "CONTINUE_LOOP"
+                            and self.pgm_stack[i].args[2] == loop_name):
+                        occurences.append(i)
+            elif label == "REDO_LOOP":
+                for i in range(self.pc, len(self.pgm_stack)):
+                    if (self.pgm_stack[i].opcode == "LABEL" 
+                            and self.pgm_stack[i].args[0] == "CONTINUE_LOOP"
+                            and self.pgm_stack[i].args[2] == loop_name):
+                        occurences.append(self.pgm_stack[i].args[1])
+            else:
+                for i in range(self.pc, len(self.pgm_stack)):
+                    if (self.pgm_stack[i].opcode == "LABEL" 
+                            and self.pgm_stack[i].args[0] == label
+                            and self.pgm_stack[i].args[1] == loop_name):
+                        occurences.append(i)
+                        
             if len(occurences) > 0:
                 self.pc = occurences[-1]
                 return
@@ -253,6 +295,7 @@ class VM:
         
     def perform_spaceship(self, val, in_loop):
         v = self.get_variable(str(val), 'raw')
+        self.last_fh_read = val
         l = None
         try:
             l = v._val.readline()
@@ -263,7 +306,10 @@ class VM:
         if (in_loop):
             self.set_variable('_', Value(l), 'scalar')
             
-        self.stack.push(Value(l))
+        if (l == ''):    
+            self.stack.push(Value(''))
+        else:
+            self.stack.push(Value(l))
         
     def perform_backticks(self, cmdstr):
         self.perform_interpolated_push(cmdstr)
@@ -484,6 +530,8 @@ class VM:
             BuiltIns.do_open(self, args)
         elif (name == 'close'):
             BuiltIns.do_close(self, args)
+        elif (name == 'eof'):
+            BuiltIns.do_eof(self, args)
         else:
             raise Exception("Undefined built-in: " + name)
             

@@ -192,6 +192,46 @@ class BuiltIns():
         else:
             fp._val.seek(pos)
             vm.stack.push(Value(0))
-            
+    
+    @staticmethod
+    def do_shift(vm, argv):
+        v = vm.get_variable(str(argv[0]), 'list')
+        elem0 = Value(None)        
+        if (len(v) > 1):
+            elem0 = v._val[0]
+            vm.set_variable(str(argv[0]), Value(v._val[1:]), 'list')
+        elif (len(v) == 1):
+            elem0 = v._val[0]
+            vm.set_variable(str(argv[0]), Value(None), 'list')
+        else:
+            vm.set_variable(str(argv[0]), Value(None), 'list')
+        vm.stack.push(elem0)
 
+    @staticmethod
+    def do_unshift(vm, argv):
+        name = str(argv[-1])
+        v = vm.get_variable(name, 'list')
+        
+        for i in range(0, len(argv)-1):
+            if (argv[i]._val != None):
+                v = v.prepend_list(argv[i])
+                vm.set_variable(name, v, 'list')
+            
+        vm.stack.push(Value(len(v)))
+        
+    @staticmethod
+    def do_index(vm, argv):
+        src = str(argv[1])
+        search = str(argv[0])
+        
+        vm.stack.push(Value(src.index(search, 0)))
+        
+    @staticmethod
+    def do_sprintf(vm, argv):
+        fmt_str = str(argv[-1])
+        strs = []
+        for i in range(0, len(argv)-1):
+            strs.insert(0, str(i))
+            
+        vm.stack.push(Value(fmt_str % tuple(strs)))
         

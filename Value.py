@@ -281,6 +281,15 @@ class Value(object):
     def __ge__(self, other):
         return Value(self.numerify() >= other.numerify())
 
+    def prepend_list(self, other):
+        if other.type == 'Scalar':
+            return Value([other._val] + self._val)
+            
+        return Value(other._val + self._val)
+    
+    def list_concat(self, other):
+        return Value(self._val + other._val)
+
     def str_concat(self, other):
         return Value(self.stringify() + other.stringify())
 

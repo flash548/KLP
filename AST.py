@@ -483,35 +483,118 @@ class UnpackAssignNode(AST):
             
 class ScalarIncrDecrNode(AST):
 
-    def __init__(self, name, expr, op):
+    def __init__(self, name, expr, rvalue, op):
         self._name = name
         self._expr = expr
+        self._rval = rvalue
         self._op = op
         
     def emit(self, vm):
         if (self._op == '+='):
-            self._expr.emit(vm)
-            vm.append_instruction(Instruction("INCR SCALAR", [ self._name ]))
+            has_idx = False
+            if self._expr:
+                has_idx = True
+                self._expr.emit(vm)
+            vm.append_instruction(Instruction("PUSH SCALAR VAR", [ self._name, has_idx ]))
+            self._rval.emit(vm)
+            vm.append_instruction(Instruction("BINOP", [str('+')]))
+            vm.append_instruction(Instruction("SCALAR ASSIGN", [ self._name, has_idx ]))
+            
         elif (self._op == '-='):
+            has_idx = False
+            if self._expr:
+                has_idx = True
+                self._expr.emit(vm)
+            vm.append_instruction(Instruction("PUSH SCALAR VAR", [ self._name, has_idx ]))
+            self._rval.emit(vm)
+            vm.append_instruction(Instruction("BINOP", [str('-')]))
+            vm.append_instruction(Instruction("SCALAR ASSIGN", [ self._name, has_idx ]))
+            
+        elif (self._op == '*='):
+            has_idx = False
+            if self._expr:
+                has_idx = True
+                self._expr.emit(vm)
+            vm.append_instruction(Instruction("PUSH SCALAR VAR", [ self._name, has_idx ]))
+            self._rval.emit(vm)
+            vm.append_instruction(Instruction("BINOP", [str('*')]))
+            vm.append_instruction(Instruction("SCALAR ASSIGN", [ self._name, has_idx ]))
+            
+        elif (self._op == '/='):
+            has_idx = False
+            if self._expr:
+                has_idx = True
+                self._expr.emit(vm)
+            vm.append_instruction(Instruction("PUSH SCALAR VAR", [ self._name, has_idx ]))
+            self._rval.emit(vm)
+            vm.append_instruction(Instruction("BINOP", [str('/')]))
+            vm.append_instruction(Instruction("SCALAR ASSIGN", [ self._name, has_idx ]))
+            
+        elif (self._op == '^='):
+            has_idx = False
+            if self._expr:
+                has_idx = True
+                self._expr.emit(vm)
+            vm.append_instruction(Instruction("PUSH SCALAR VAR", [ self._name, has_idx ]))
+            self._rval.emit(vm)
+            vm.append_instruction(Instruction("BINOP", [str('^')]))
+            vm.append_instruction(Instruction("SCALAR ASSIGN", [ self._name, has_idx ]))
+            
+        elif (self._op == '++'): # prefix ++
+            self._name = self._expr._name
+            if self._expr._index_expr:
+                self._expr._index_expr.emit(vm)
             self._expr.emit(vm)
-            vm.append_instruction(Instruction("DECR SCALAR", [ self._name ]))
-        elif (self._op == '++'):
+            vm.append_instruction(Instruction("PUSH CONST", [Value(1)]))
+            vm.append_instruction(Instruction("BINOP", [str('+')]))
+            vm.append_instruction(Instruction("SCALAR ASSIGN",
+                [ self._name, True if self._expr._index_expr != None else False ]))
+                
+        elif (self._op == '--'): # prefix --
+            self._name = self._expr._name
+            if self._expr._index_expr:
+                self._expr._index_expr.emit(vm)
+            self._expr.emit(vm)
+            vm.append_instruction(Instruction("PUSH CONST", [Value(1)]))
+            vm.append_instruction(Instruction("BINOP", [str('-')]))
+            vm.append_instruction(Instruction("SCALAR ASSIGN",
+                [ self._name, True if self._expr._index_expr != None else False ]))
+                
+        elif (self._op == 'post++'): # postfix ++
+            has_idx = False
+            if self._expr:
+                has_idx = True
+                self._expr.emit(vm)
+            vm.append_instruction(Instruction("PUSH SCALAR VAR", [ self._name, has_idx ]))
             vm.append_instruction(Instruction("PUSH CONST", [ Value(1) ]))
-            vm.append_instruction(Instruction("INCR SCALAR", [ self._name ]))
-            vm.append_instruction(Instruction("PUSH SCALAR VAR", [ self._name, False ]))
-        elif (self._op == '--'):
+            if self._expr:
+                has_idx = True
+                self._expr.emit(vm)
+            vm.append_instruction(Instruction("INCR SCALAR", [ self._name, has_idx ]))
+            
+        elif (self._op == 'post--'): # postfix --
+            has_idx = False
+            if self._expr:
+                has_idx = True
+                self._expr.emit(vm)
+            vm.append_instruction(Instruction("PUSH SCALAR VAR", [ self._name, has_idx ]))
             vm.append_instruction(Instruction("PUSH CONST", [ Value(1) ]))
-            vm.append_instruction(Instruction("DECR SCALAR", [ self._name ]))
-            vm.append_instruction(Instruction("PUSH SCALAR VAR", [ self._name, False ]))
-        elif (self._op == 'post++'):
-            #vm.append_instruction(Instruction("PUSH SCALAR VAR", [ self._name, False ]))
-            vm.append_instruction(Instruction("PUSH SCALAR VAR", [ self._name, False ]))
-            vm.append_instruction(Instruction("PUSH CONST", [ Value(1) ]))
-            vm.append_instruction(Instruction("INCR SCALAR", [ self._name ]))
-        elif (self._op == 'post--'):
-            vm.append_instruction(Instruction("PUSH SCALAR VAR", [ self._name, False ]))
-            vm.append_instruction(Instruction("PUSH CONST", [ Value(1) ]))
-            vm.append_instruction(Instruction("DECR SCALAR", [ self._name ]))
+            vm.append_instruction(Instruction("DECR SCALAR", [ self._name, has_idx ]))
+            
+        elif (self._op == '.='):
+            has_idx = False
+            if self._expr:
+                has_idx = True
+                self._expr.emit(vm)
+            vm.append_instruction(Instruction("PUSH SCALAR VAR", [ self._name, has_idx ]))
+            self._rval.emit(vm)
+            if self._expr:
+                has_idx = True
+                self._expr.emit(vm)
+            vm.append_instruction(Instruction("STR CAT", [ self._name, has_idx ]))
+            # self._expr.emit(vm)
+            # vm.append_instruction(Instruction("STR CAT", [ self._name, False ]))
+            
             
 
 class ScalarAssignNode(AST):
@@ -519,7 +602,7 @@ class ScalarAssignNode(AST):
     def __init__(self, name, expr, index_expr):
         self._name = name
         self._expr = expr
-        self._index_expr = index_expr;
+        self._index_expr = index_expr
 
     def emit(self, vm):
         if (self._index_expr != None):
@@ -532,5 +615,5 @@ class ScalarAssignNode(AST):
         else:
             # an actual scalar value assigned to something
             self._expr.emit(vm)
-        
+
         vm.append_instruction(Instruction("SCALAR ASSIGN", [ self._name, True if self._index_expr != None else False ]))

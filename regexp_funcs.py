@@ -2,17 +2,22 @@ import re
 import string
 from Value import *
 
-def parse_re_opts(opts):
-    if opts == None or opts == '':
-        return 0
-        
+def parse_re_opts(vm, opts):
+    
     opts_str = 0
+
+    if vm.get_variable('*', 'scalar')._val:
+        opts_str |= re.M
+    
+    if opts == None or opts == '':
+        return opts_str
+    
     if re.search('i', opts):
         opts_str |= re.I
         
     if re.search('x', opts):
         opts_str |= re.X
-        
+      
     return opts_str
 
 # builds a range for a transliteration
@@ -144,7 +149,7 @@ def do_subs_op(vm, name, index_expr, spec, invert):
     regex = spec._val['spec']
     repl = spec._val['repl']
     options = spec._val['opts']
-    re_obj = re.compile(regex, parse_re_opts(options))
+    re_obj = re.compile(regex, parse_re_opts(vm, options))
     ret = re_obj.search(v.stringify())
 
     # populate $1 thru $10
@@ -193,7 +198,7 @@ def do_match_op(vm, name, index_expr, spec, invert):
     
     regex = spec._val['spec']
     options = spec._val['opts']
-    ret = re.search(regex, v.stringify(), parse_re_opts(options))
+    ret = re.search(regex, v.stringify(), parse_re_opts(vm, options))
     for i in range(10):
         vm.set_variable(str(i+1), Value(None), 'scalar')
     if ret and ret.lastindex:

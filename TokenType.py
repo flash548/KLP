@@ -51,8 +51,12 @@ class TokenType:
     WHILE = 'WHILE'
     PLUSPLUS = 'PLUSPLUS'
     MINUSMINUS = 'MINUSMINUS'
+    STR_INCR = 'STR_INCR' # .=
     INCR = 'INCR'
     DECR = 'DECR'
+    MUL_INCR = 'MUL_INCR' # *=
+    DIV_INCR = 'DIV_INCR' # /=
+    XOR_INCR = 'XOR_INCR' # ^=
     COMMENT = 'COMMENT'
     FUNCTION_DECLARE = 'FUNCTION_DECLARE'
     END_FUNCTION = 'END_FUNCTION'
@@ -109,4 +113,10 @@ class TokenType:
         'close',
         'die',
         'eof',
+        'shift',
+        'unshift',
+        'seek',
+        'tell',
+        'index',
+        'sprintf'
     ]

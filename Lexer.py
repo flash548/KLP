@@ -101,6 +101,11 @@ class Lexer:
                 self.advance()
                 self.advance()
                 continue
+            elif (self.current_char == '\\' and self.peek() == '\\'):
+                result += '\\'
+                self.advance()
+                self.advance()
+                continue
             elif (self.current_char == '\\' and self.peek() == 't'):
                 result += '\t'
                 self.advance()
@@ -119,6 +124,11 @@ class Lexer:
         while (self.current_char != '\0'):
             if (self.current_char == "'"):
                 break  # end of string
+            elif (self.current_char == '\\' and self.peek() == '\\'):
+                result += '\\'
+                self.advance()
+                self.advance()
+                continue
             result += self.current_char
             self.advance()
 
@@ -130,7 +140,7 @@ class Lexer:
         name = ""
         while (
             self.current_char != '\0' and (self.current_char.isalnum() 
-                or (self.current_char in ['_', '@', '#', '!', '^', '%', '\\', '/' ] 
+                or (self.current_char in ['_', '@', '#', '!', '^', '%', '\\', '/', '*' ] 
                     and self.prev_token.type == TokenType.SCALAR))):
             name += self.current_char
             self.advance()
@@ -263,7 +273,7 @@ class Lexer:
                 # and rewinds, this destroys the whole concept of an accurate true 'previous token'
                 # hack alert - manually set the prev token type to SCALAR since previous char was '$'
                 if (self.current_char.isalnum() 
-                        or (self.current_char in ['_', '@', '#', '!', '^', '%', '\\', '/' ])):
+                        or (self.current_char in ['_', '@', '#', '!', '^', '%', '\\', '/', '*' ])):
                     self.prev_token = Token(TokenType.SCALAR, Value('$'))
                     return self.get_id()
         
@@ -410,6 +420,9 @@ class Lexer:
 
             if (self.current_char == '.'):
                 self.advance()
+                if (self.current_char == '='):
+                    self.advance()
+                    return self.make_token(TokenType.STR_INCR, Value('.='))
                 return self.make_token(TokenType.STR_CONCAT, Value('.'))
 
             if (self.current_char == '='):
@@ -443,6 +456,9 @@ class Lexer:
                 ret = self.parse_match_spec()
                 if ret == None:
                     self.advance()
+                    if (self.current_char == '='):
+                        self.advance()
+                        return self.make_token(TokenType.DIV_INCR, Value("/="))
                     return self.make_token(TokenType.DIV, Value('/'))
                 else:
                     return ret
@@ -512,6 +528,9 @@ class Lexer:
 
             if (self.current_char == '^'):
                 self.advance()
+                if (self.current_char == '='):
+                    self.advance()
+                    return self.make_token(TokenType.XOR_INCR, Value("^="))
                 return self.make_token(TokenType.XOR, Value('^'))
 
             if (self.current_char == "*"):
@@ -519,6 +538,9 @@ class Lexer:
                 if (self.current_char == '*'):
                     self.advance()
                     return self.make_token(TokenType.POW, Value('**'))
+                elif (self.current_char == '='):
+                    self.advance()
+                    return self.make_token(TokenType.MUL_INCR, Value("*="))
                 else:
                     return self.make_token(TokenType.MUL, Value('*'))
                     

@@ -229,11 +229,14 @@ class VM:
         elif (instr.opcode == "PUSH LIST MAX INDEX"):
             self.perform_get_list_max_index(instr.args[0])
             
+        elif (instr.opcode == "STR CAT"):
+            self.perform_string_cat(instr.args[0], instr.args[1])
+            
         elif (instr.opcode == "INCR SCALAR"):
-            self.perform_incr_decr(instr.args[0], True)
+            self.perform_incr_decr(instr.args[0], instr.args[1], True)
             
         elif (instr.opcode == "DECR SCALAR"):
-            self.perform_incr_decr(instr.args[0], False)
+            self.perform_incr_decr(instr.args[0], instr.args[1], False)
             
         elif (instr.opcode == "LIST ASSIGN"):
             self.perform_list_assign(instr.args[0], instr.args[1])
@@ -329,7 +332,11 @@ class VM:
         elif (op == '*'):
             self.stack.push(_left * _right)
         elif (op == '/'):
-            self.stack.push(_left / _right)
+            # catch the divide by zero possibility
+            try:
+                self.stack.push(_left / _right)
+            except ZeroDivisionError as e:
+                self.stack.push(Value(float('inf')))
         elif (op == '^'):
             self.stack.push(_left ^ _right)
         elif (op == '.'):
@@ -406,6 +413,7 @@ class VM:
                 self.stack.push(v.scalar_context())
         else:
             if (context == 'list'):
+                # expand out the list, and push all elems onto stack
                 v = self.get_variable(name, context)
                 self.stack.push(v.list_context())
             else:
@@ -417,11 +425,15 @@ class VM:
         self.stack.push(Value(len(v)-1))
             
     def perform_interpolated_push(self, val):
-        """ Interpolate this string before pushing as a const """
+        """ Interpolate a string before pushing it onto stack as a const """
         
         string_const = str(val)
         vars = {}
+        
         # look for sigils and get varnames
+        # varnames can be encased in {} as well
+        # so lots of fun in here!
+        
         i = 0
         in_curly = False
         in_var = False
@@ -430,10 +442,10 @@ class VM:
         var_to_replace = ""
         sigil = None
         while i < len(string_const):
-            if (string_const[i] in ('$', '@', '%') 
+            if (string_const[i] in ('$', '@') 
                     and not escaped 
                     and not in_var
-                    and string_const[-1] not in ('$', '@', '%') ):
+                    and string_const[-1] not in ('$', '@') ):
                 sigil = string_const[i]
                 in_var = True
                 var_to_replace += string_const[i]
@@ -473,7 +485,7 @@ class VM:
             var_kind = None
             if sigil == '$': var_kind = 'scalar'
             elif sigil == '@': var_kind = 'list'
-            elif sigil == '%': var_kind = 'hash'
+            #elif sigil == '%': var_kind = 'hash'
             
             v = self.get_variable(vars[var].replace('{', '').replace('}', ''), var_kind)
             string_const = string_const.replace(var, str(v.scalar_context()))
@@ -494,15 +506,51 @@ class VM:
         else:
             raise Exception("Undefined sub: " + name)
             
-    def perform_incr_decr(self, name, incr):
-        v = self.get_variable(name, 'scalar')
-        val = self.stack.pop()
-        if (incr == True):
-            v = v + val
-        else:
-            v = v - val
-        self.set_variable(name, v, 'scalar')
+    def perform_string_cat(self, name, idx_expr):
+        idx = None
+        if idx_expr:
+            idx = self.stack.pop()
             
+        incr_amt = self.stack.pop() # what were adding to the string
+        lval = self.stack.pop() # what we're adding/subing to
+        lval = lval.str_concat(incr_amt)
+
+        # now decide where to stuff it back to    
+        # see if its a list element or not
+        if idx_expr:
+            v = self.get_variable(name, 'list')
+            v[idx.numerify()] = lval
+            self.set_variable(name, v, 'list')
+        else:
+            self.set_variable(name, lval, 'scalar')
+    
+        self.stack.push(lval)
+            
+    def perform_incr_decr(self, name, idx_expr, incr):
+        """ Performs the postfix incr/decr """
+        
+        idx = None
+        if idx_expr:
+            idx = self.stack.pop()
+            
+        incr_amt = self.stack.pop() # incr/decr amnt
+        lval = self.stack.pop() # what we're adding/subing to
+        if incr == True:
+            lval += incr_amt
+        else:
+            lval -= incr_amt
+            
+        # now decide where to stuff it back to    
+        # see if its a list element or not
+        if idx_expr:
+            v = self.get_variable(name, 'list')
+            v[idx.numerify()] = lval.scalar_context()
+            self.set_variable(name, v, 'list')
+        else:
+            self.set_variable(name, lval, 'scalar')
+            
+        self.stack.push(lval)
+                        
 
     def perform_func_call(self, name, fh, argslen):
         args = []
@@ -532,6 +580,14 @@ class VM:
             BuiltIns.do_close(self, args)
         elif (name == 'eof'):
             BuiltIns.do_eof(self, args)
+        elif (name == 'shift'):
+            BuiltIns.do_shift(self, args)
+        elif (name == 'unshift'):
+            BuiltIns.do_unshift(self, args)
+        elif (name == 'index'):
+            BuiltIns.do_index(self, args)
+        elif (name == 'sprintf'):
+            BuiltIns.do_sprintf(self, args)
         else:
             raise Exception("Undefined built-in: " + name)
             
@@ -619,10 +675,15 @@ class VM:
         for i in range(0, length):
             stack_val = self.stack.pop()
             if stack_val.type == 'List':
+                temp = []
                 for j in stack_val._val:
-                    arry.push(Value(j))
+                    temp.append(Value(j))  
+                temp.reverse()
+                for i in temp:
+                    arry.push(i)
             else:
                 arry.push(stack_val)
+
         arry.reverse()
         self.set_variable(name, arry, 'list')
         

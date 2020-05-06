@@ -111,9 +111,13 @@ class Parser:
             return self.for_statement()
             
         elif self.current_token.type == TokenType.LCURLY:
-            self.eat(TokenType.LCURLY)
-            return self.statement_list()
+            self.eat(TokenType.LCURLY)            
+            stmts = []
+            while (self.current_token.type != TokenType.RCURLY):
+                stmts.append(self.statement())
+                self.eat_end_of_statement()
             self.eat(TokenType.RCURLY)
+            return RootNode(stmts)
             
         elif self.current_token.type == TokenType.LABEL:
             name = str(self.current_token.value)
@@ -168,11 +172,11 @@ class Parser:
         elif (self.current_token.type == TokenType.WHILE):
             self.eat(TokenType.WHILE)
             expr = self.expression();
-            return WhileNode(expr, [ node ], [], False)
+            return WhileNode(expr, [ node ], [], False, self.last_label_name)
         elif (self.current_token.type == TokenType.UNTIL):
             self.eat(TokenType.UNTIL)
             expr = self.expression();
-            return WhileNode(expr, [ node ], [], True)
+            return WhileNode(expr, [ node ], [], True, self.last_label_name)
         else:
             return node
     
@@ -445,7 +449,12 @@ class Parser:
         # to a list or hash or scalar!!
         if (token.type == TokenType.SCALAR):
             self.eat(TokenType.SCALAR)
-            name = str(self.current_token.value)
+            encased_curly = False
+            if self.current_token.type == TokenType.LCURLY:
+                encased_curly = True
+                self.eat(TokenType.LCURLY)
+                
+            name = str(self.current_token.value) # the actual var's name
             self.eat(TokenType.ID)
             index_expr = None
             if (self.current_token.type == TokenType.LBRACKET):
@@ -458,6 +467,12 @@ class Parser:
                 # hash index expr
                 self.eat(TokenType.LCURLY)
                 index_expr = self.expression()
+                self.eat(TokenType.RCURLY)
+                
+            if encased_curly:
+                # has to have a RCURLY if we did ${a} syntax
+                if self.current_token.type != TokenType.RCURLY:  
+                    raise Exception("Parse Error: expected closing RCURLY on var!")
                 self.eat(TokenType.RCURLY)
                 
             if (self.current_token.type == TokenType.ASSIGN):
@@ -495,19 +510,35 @@ class Parser:
             
             elif (self.current_token.type == TokenType.INCR):
                 self.eat(TokenType.INCR)
-                return ScalarIncrDecrNode(name, self.expression(), '+=')
+                return ScalarIncrDecrNode(name, index_expr, self.expression(), '+=')
                 
             elif (self.current_token.type == TokenType.DECR):
                 self.eat(TokenType.DECR)
-                return ScalarIncrDecrNode(name, self.expression(), '-=')
+                return ScalarIncrDecrNode(name, index_expr, self.expression(), '-=')
+                
+            elif (self.current_token.type == TokenType.MUL_INCR):
+                self.eat(TokenType.MUL_INCR)
+                return ScalarIncrDecrNode(name, index_expr, self.expression(), '*=')
+                
+            elif (self.current_token.type == TokenType.DIV_INCR):
+                self.eat(TokenType.DIV_INCR)
+                return ScalarIncrDecrNode(name, index_expr, self.expression(), '/=')
+                
+            elif (self.current_token.type == TokenType.XOR_INCR):
+                self.eat(TokenType.XOR_INCR)
+                return ScalarIncrDecrNode(name, index_expr, self.expression(), '^=')
+                
+            elif (self.current_token.type == TokenType.STR_INCR):
+                self.eat(TokenType.STR_INCR)
+                return ScalarIncrDecrNode(name, index_expr, self.expression(), '.=')
                 
             elif (self.current_token.type == TokenType.PLUSPLUS):
                 self.eat(TokenType.PLUSPLUS)
-                return ScalarIncrDecrNode(name, None, 'post++')
+                return ScalarIncrDecrNode(name, index_expr, None, 'post++')
                 
             elif (self.current_token.type == TokenType.MINUSMINUS):
                 self.eat(TokenType.MINUSMINUS)
-                return ScalarIncrDecrNode(name, None, 'post--')
+                return ScalarIncrDecrNode(name, index_expr, None, 'post--')
                 
             else:
                 return ScalarVarNode(name, index_expr)
@@ -516,19 +547,19 @@ class Parser:
         elif (token.type == TokenType.MATCH_SPEC):
             spec = self.current_token.value
             self.eat(TokenType.MATCH_SPEC)
-            return MatchNode(None, None, spec)
+            return MatchNode(None, None, spec, False)
         
         # handle a Transliteration spec by itself - on the $_ var        
         elif (token.type == TokenType.TRANS_SPEC):
             spec = self.current_token.value
             self.eat(TokenType.TRANS_SPEC)
-            return TransNode(None, None, spec)
+            return TransNode(None, None, spec, False)
             
         # handle a Substitution spec by itself - on the $_ var        
         elif (token.type == TokenType.SUBS_SPEC):
             spec = self.current_token.value
             self.eat(TokenType.SUBS_SPEC)
-            return SubsNode(None, None, spec)
+            return SubsNode(None, None, spec, False)
         
         # '@' sigil -> interprets rvalue expr in list context
         elif (token.type == TokenType.LIST):
@@ -548,7 +579,7 @@ class Parser:
             self.eat(TokenType.ID)
             return HashVarNode(name)
                 
-        # '$#" twigil
+        # '$#" 'twigil' (hat tip to p6)
         elif (token.type == TokenType.LIST_MAX_INDEX):
             self.eat(TokenType.LIST_MAX_INDEX)
             name = ''
@@ -586,26 +617,26 @@ class Parser:
         elif (token.type == TokenType.PLUSPLUS):
             # prefix incr
             self.eat(TokenType.PLUSPLUS)
-            # we can assume next token is ID for the variable name
-            self.eat(TokenType.SCALAR)
-            name = str(self.current_token.value)
-            self.eat(TokenType.ID)
-            return ScalarIncrDecrNode(name, None, '++')
+            expr = self.expression()
+            # expr should be of type 'ScalarVarNode'
+            if not type(expr) is ScalarVarNode:
+                raise Exception("Parse error: Prefix ++ expects variable lvalue")
+            return ScalarIncrDecrNode(None, expr, None, '++')
             
         elif (token.type == TokenType.MINUSMINUS):
             # prefix decr
             self.eat(TokenType.MINUSMINUS)
-            # we can assume next token is ID for the variable name
-            self.eat(TokenType.SCALAR)
-            name = str(self.current_token.value)
-            self.eat(TokenType.ID)
-            return ScalarIncrDecrNode(name, None, '--')
+            expr = self.expression()
+            # expr should be of type 'ScalarVarNode'
+            if not type(expr) is ScalarVarNode:
+                raise Exception("Parse error: Prefix -- expects variable lvalue")
+            return ScalarIncrDecrNode(None, expr, None, '--')
             
         elif (token.type == TokenType.ID):
             name = token.value
             self.eat(TokenType.ID)
             if (str(name) in TokenType.BUILTINS):
-                # its a builtin
+                # its a builtin - there are some special cases
                 if (str(name) == 'print'
                         and self.current_token.type == TokenType.ID
                         and str(self.current_token.value) not in TokenType.BUILTINS):
@@ -614,6 +645,39 @@ class Parser:
                     self.eat(TokenType.ID)
                     args = self.consume_list()
                     return BuiltInFunctionNode(name, fh, args)
+                
+                # shift is special since its destructive, don't eval the array arg
+                # which is easy since it only takes one arg
+                elif (str(name) == 'shift'):
+                    eat_paren = False
+                    if (self.current_token.type == TokenType.LPAREN):
+                        self.eat(TokenType.LPAREN)
+                        eat_paren = True
+                    self.eat(TokenType.LIST)
+                    var_name = self.current_token.value
+                    self.eat(TokenType.ID)
+                    if (eat_paren):
+                        self.eat(TokenType.RPAREN)
+                    return BuiltInFunctionNode(name, None, [ValueNode(var_name)])
+                # shift is special since its destructive, don't eval the array arg
+                # which is easy since it only takes one arg
+                elif (str(name) == 'unshift'):
+                    eat_paren = False
+                    if (self.current_token.type == TokenType.LPAREN):
+                        self.eat(TokenType.LPAREN)
+                        eat_paren = True
+                    self.eat(TokenType.LIST)
+                    var_name = self.current_token.value
+                    self.eat(TokenType.ID)
+                    if (self.current_token.type == TokenType.COMMA):
+                        self.eat(TokenType.COMMA)
+                    else:
+                        return BuiltInFunctionNode(name, None, [ValueNode(var_name), ValueNode(Value(None))])
+                    
+                    args = self.consume_list()
+                    if (eat_paren):
+                        self.eat(TokenType.RPAREN)
+                    return BuiltInFunctionNode(name, None, [ValueNode(var_name)] + args)
                 else:
                     args = self.consume_list()
                     return BuiltInFunctionNode(name, None, args)

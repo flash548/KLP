@@ -25,12 +25,12 @@ for($a[0]=0; $a[0] < 5; $a[0]++) {
     print "hello\n";
 }
 
-@strs=("Hello", "Chris");
-$strs[1] .= "Zell";
+@strs=("Hello", "Homer");
+$strs[1] .= "Simpson";
 print $strs[1];
 
-$name = "Zell";
-$name .= "Chris";
+$name = "Simpson";
+$name .= "Homer";
 print $name;
 
 print index("Chris", "ris");

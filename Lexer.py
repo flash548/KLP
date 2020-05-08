@@ -187,7 +187,7 @@ class Lexer:
         char_count = 1  # have to have 2 start char's for a good pat
         self.advance()
         last_char = None
-        while (self.current_char != start_char and last_char != '\\') and self.current_char != '\0':
+        while (self.current_char != start_char) and self.current_char != '\0':
             last_char = self.current_char
             #if self.current_char == '\\' and last_char != '\\':
             match_regex += self.current_char
@@ -211,14 +211,14 @@ class Lexer:
         start_char = self.current_char
         self.advance()
         last_char = None
-        while (self.current_char != start_char and last_char != '\\') and self.current_char != '\0':
+        while (self.current_char != start_char) and self.current_char != '\0':
             last_char = self.current_char
             search_spec += self.current_char
             self.advance()
             
         self.advance()
         last_char = None
-        while (self.current_char != start_char and last_char != '\\') and self.current_char != '\0':
+        while (self.current_char != start_char) and self.current_char != '\0':
             last_char = self.current_char
             repl_spec += self.current_char
             self.advance()

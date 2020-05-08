@@ -2,6 +2,7 @@ from Value import Value
 import sys
 import subprocess
 import os
+import re
 
 class BuiltIns():
 
@@ -179,7 +180,7 @@ class BuiltIns():
             fp = vm.get_variable(handle, 'raw')
         else:
             fp = vm.get_variable(str(vm.last_fh_read), 'raw')
-         
+
         if (fp._val.closed):
             vm.stack.push(Value(1))
             return
@@ -223,15 +224,87 @@ class BuiltIns():
     def do_index(vm, argv):
         src = str(argv[1])
         search = str(argv[0])
+        pos = -1
+        try:
+            pos = src.index(search, 0)
+        except:
+            pass
+        vm.stack.push(Value(pos))
         
-        vm.stack.push(Value(src.index(search, 0)))
         
+    # TODO: major hack, needs fixed
+    # here we have to see what format specifiers are present
+    # and convert the value to something python is happy with
+    # plus in order to use Python's builtin format function,
+    # we have to have exactly same number fields vs items ... Python is 
+    # soooo picky!  This is just ugly.
     @staticmethod
     def do_sprintf(vm, argv):
         fmt_str = str(argv[-1])
         strs = []
         for i in range(0, len(argv)-1):
-            strs.insert(0, str(i))
+            if (argv[i].type == "List"):
+                sublist = []
+                for j in argv[i]._val:
+                    sublist.insert(0, j)
+                for j in sublist: strs.insert(0, j)
+            else:
+                strs.insert(0, argv[i])
             
-        vm.stack.push(Value(fmt_str % tuple(strs)))
+        fields = re.findall("%[0-9-.]*?([a-zA-Z])", fmt_str)
+        idx = 0
+        for field in fields:
+            if 's' not in field:
+                # anything other than string, do a numerify
+                if idx >= len(strs):
+                    strs.append(Value(None).numerify())
+                else:    
+                    strs[idx] = strs[idx].numerify()
+            else:
+                if idx >= len(strs):
+                    strs.append(Value(None).stringify())
+                else:
+                    strs[idx] = strs[idx].stringify()
+                
+            idx += 1
+            
+        if (len(fields) == 0):
+            vm.stack.push(Value(fmt_str))
+        else:
+            if len(fields) < len(strs):
+                strs = strs[0:len(fields)]
+            vm.stack.push(Value(fmt_str % tuple(strs)))
         
+    @staticmethod
+    def do_seek(vm, argv):
+        handle = str(argv[-1])
+        offset = argv[-2].numerify()
+        whence = 0
+        if (len(argv) > 2):
+            whence = argv[-3].numerify()
+        fp = vm.get_variable(handle, 'raw')
+        error = ''
+        success = True
+        try:
+            fp._val.seek(offset, whence)
+        except Exception as e:
+            error = str(e)
+            success = False
+        
+        # set errno
+        vm.set_variable('!', Value(error), 'scalar')  
+        vm.set_variable(handle, fp, 'raw')        
+        vm.stack.push(Value(1) if success else Value(0))
+        
+    @staticmethod
+    def do_tell(vm, argv):
+        handle = None
+        fp = None
+        if len(argv) > 0:
+            handle = str(argv[0])
+            fp = vm.get_variable(handle, 'raw')
+        else:
+            fp = vm.get_variable(str(vm.last_fh_read), 'raw')
+
+        pos = fp._val.tell()
+        vm.stack.push(Value(pos))

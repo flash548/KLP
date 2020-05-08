@@ -152,7 +152,9 @@ class Value(object):
     def _each(self):
         if (self.type == 'Hash'):
             try:
-                k = self._val.keys()[self._last_hash_key]
+                arr = self._val.keys()
+                arr.reverse()
+                k = arr[self._last_hash_key]
                 v = self._val[k]
                 self._last_hash_key += 1
                 return (Value(k), v)

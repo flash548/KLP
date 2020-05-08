@@ -588,6 +588,10 @@ class VM:
             BuiltIns.do_index(self, args)
         elif (name == 'sprintf'):
             BuiltIns.do_sprintf(self, args)
+        elif (name == 'seek'):
+            BuiltIns.do_seek(self, args)
+        elif (name == 'tell'):
+            BuiltIns.do_tell(self, args)
         else:
             raise Exception("Undefined built-in: " + name)
             

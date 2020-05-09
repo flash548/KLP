@@ -140,7 +140,16 @@ class VM:
     def run(self):
 
         # try:
+        is_debug = True
         while self.step():
+            # r = raw_input()
+            # if (r == 'q'):
+                # is_debug = False
+                
+            # if is_debug:
+                # print "%s: %s\n" % (self.pc, self.pgm_stack[self.pc])
+                # print self.dump_stack()
+                # print self.dump_current_scope()
             pass
         # except Exception as e:
             # pass
@@ -530,11 +539,16 @@ class VM:
         """ Performs the postfix incr/decr """
         
         idx = None
+        lval = None
         if idx_expr:
             idx = self.stack.pop()
+            lval = self.get_variable(name, 'list')
+            lval = lval[idx.numerify()]
+        else:
+            lval = self.get_variable(name, 'scalar')
             
         incr_amt = self.stack.pop() # incr/decr amnt
-        lval = self.stack.pop() # what we're adding/subing to
+        #lval = self.stack.pop() # what we're adding/subing to
         if incr == True:
             lval += incr_amt
         else:
@@ -549,7 +563,7 @@ class VM:
         else:
             self.set_variable(name, lval, 'scalar')
             
-        self.stack.push(lval)
+        #self.stack.push(lval)
                         
 
     def perform_func_call(self, name, fh, argslen):
@@ -592,6 +606,10 @@ class VM:
             BuiltIns.do_seek(self, args)
         elif (name == 'tell'):
             BuiltIns.do_tell(self, args)
+        elif (name == 'crypt'):
+            BuiltIns.do_crypt(self, args)
+        elif (name == 'chop'):
+            BuiltIns.do_chop(self, args)
         else:
             raise Exception("Undefined built-in: " + name)
             

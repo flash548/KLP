@@ -49,6 +49,16 @@ class Lexer:
 
     def skip_whitespace(self):
         while self.current_char != '\0' and self.current_char.isspace():
+            if self.current_char == '\r' and self.peek() == '\n':
+                self.advance()
+                self.advance()
+                self.line_number += 1
+                continue
+            elif self.current_char == '\n':
+                self.line_number += 1
+                self.advance()
+                continue
+                
             self.advance()
 
     def comment(self):
@@ -139,7 +149,7 @@ class Lexer:
     def get_id(self):
         name = ""
         while (
-            self.current_char != '\0' and (self.current_char.isalnum() 
+            self.current_char != '\0' and (self.current_char.isalnum() or self.current_char == '_'
                 or (self.current_char in ['_', '@', '#', '!', '^', '%', '\\', '/', '*' ] 
                     and self.prev_token.type == TokenType.SCALAR))):
             name += self.current_char
@@ -336,8 +346,8 @@ class Lexer:
                 return self.parse_subs_spec()
 
             if (self.current_char.isalnum() or self.current_char == '_'):
-                if (self.current_char == 'e' and
-                        self.peek() == 'q' and self.peek(2).isspace()):
+                if (self.current_char.upper() == 'E' and
+                        self.peek().upper() == 'Q' and self.peek(2).isspace()):
                     self.advance()
                     self.advance()
                     return self.make_token(TokenType.STR_EQ, Value('eq'))

@@ -8,8 +8,11 @@ print "\n------- NEW RUN -------\n"
 
 l = Lexer("""
 
-print 'blah';
-
+@arr = (1,2,3);
+$x= 'abc';
+$a=chop $x;
+print $a;
+print $x;
 """)
 
 p = Parser(l)

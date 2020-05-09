@@ -118,5 +118,7 @@ class TokenType:
         'seek',
         'tell',
         'index',
-        'sprintf'
+        'sprintf',
+        'crypt',
+        'chop',
     ]

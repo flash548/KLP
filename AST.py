@@ -560,6 +560,7 @@ class ScalarIncrDecrNode(AST):
             vm.append_instruction(Instruction("SCALAR ASSIGN",
                 [ self._name, True if self._expr._index_expr != None else False ]))
                 
+        # TODO: Major hack alert
         elif (self._op == 'post++'): # postfix ++
             has_idx = False
             if self._expr:
@@ -571,7 +572,12 @@ class ScalarIncrDecrNode(AST):
                 has_idx = True
                 self._expr.emit(vm)
             vm.append_instruction(Instruction("INCR SCALAR", [ self._name, has_idx ]))
-            
+            if self._rval:
+                vm.append_instruction(Instruction("POP", []))
+                self._rval._right.emit(vm)
+                vm.append_instruction(Instruction("BINOP", [ str(self._rval._op) ]))
+         
+        # TODO: Major hack alert         
         elif (self._op == 'post--'): # postfix --
             has_idx = False
             if self._expr:
@@ -579,7 +585,14 @@ class ScalarIncrDecrNode(AST):
                 self._expr.emit(vm)
             vm.append_instruction(Instruction("PUSH SCALAR VAR", [ self._name, has_idx ]))
             vm.append_instruction(Instruction("PUSH CONST", [ Value(1) ]))
+            if self._expr:
+                has_idx = True
+                self._expr.emit(vm)
             vm.append_instruction(Instruction("DECR SCALAR", [ self._name, has_idx ]))
+            if self._rval:
+                vm.append_instruction(Instruction("POP", []))
+                self._rval._right.emit(vm)
+                vm.append_instruction(Instruction("BINOP", [ str(self._rval._op) ]))
             
         elif (self._op == '.='):
             has_idx = False

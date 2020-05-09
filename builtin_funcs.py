@@ -1,8 +1,10 @@
 from Value import Value
 import sys
-import subprocess
 import os
 import re
+
+import subprocess
+import crypt
 
 class BuiltIns():
 
@@ -308,3 +310,29 @@ class BuiltIns():
 
         pos = fp._val.tell()
         vm.stack.push(Value(pos))
+        
+    @staticmethod
+    def do_crypt(vm, argv):
+        word = argv[-1]
+        salt = argv[-2]
+        
+        vm.stack.push(Value(crypt.crypt(str(word), str(salt))))
+        
+    @staticmethod
+    def do_chop(vm, argv):
+        var = None
+        name = None
+        if (len(argv) == 0):
+            name = '_'
+        else:
+            name = str(argv[-1])
+            
+        var = vm.get_variable(name, 'scalar').stringify()
+        if len(var) > 0:
+            last_char = var[-1]
+            var = var[0:-1]
+            vm.set_variable(name, Value(var), 'scalar')
+            vm.stack.push(Value(last_char))
+        else:
+            vm.stack.push(Value(None))
+       

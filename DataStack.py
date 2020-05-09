@@ -19,3 +19,6 @@ class DataStack():
         
     def pop(self):
         return self._stack.pop()
+        
+    def peek(self):
+        return self._stack[-1]

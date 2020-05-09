@@ -11,11 +11,16 @@ class Parser:
         self.statement_modifier_tokens = [ TokenType.IF, TokenType.UNLESS,
             TokenType.UNTIL, TokenType.WHILE ];
         self.last_label_name = None
+        
         # used by spaceship op to tell whether to set $_ or not
         self.in_loop_expr = False
+        
+        # used by postfix incr/decr
+        self.incr_decr_op = None
+        
 
     def error(self):
-        raise Exception("Invalid syntax on line: " + str(self.lineNumber))
+        raise Exception("Invalid syntax on line: " + str(self.lex.line_number))
         
     def is_an_operator(self, tok):
         return tok in [ TokenType.PLUS,
@@ -51,8 +56,6 @@ class Parser:
 
     def eat(self, tokType):
         if self.current_token.type == tokType:
-            if tokType == TokenType.NEWLINE:
-                self.lineNumber += 1
             self.prev_token = self.current_token
             self.current_token = self.lex.get_next_token()
             # eat comments that in the midst of statements that straddle a new line
@@ -157,7 +160,7 @@ class Parser:
             return self.check_for_conditional(self.expression())
 
         raise Exception("Invalid statement, line number: " +
-                        str(self.lineNumber))                            
+                        str(self.lex.line_number))                            
     
     def check_for_conditional(self, node):
         """ Checks for a statement modifier (if, unless, while, until)... """
@@ -409,7 +412,7 @@ class Parser:
                 result = LogicalOpNode(token.value, result, self.term())
             else:
                 result = BinOpNode(result, token.value, self.term())
-
+                    
         return result
 
     def term(self):
@@ -439,7 +442,7 @@ class Parser:
             token = self.current_token
             self.eat(self.current_token.type)
             result = BinOpNode(result, token.value, self.factor())
-
+            
         return result
 
     def factor(self):
@@ -534,11 +537,21 @@ class Parser:
                 
             elif (self.current_token.type == TokenType.PLUSPLUS):
                 self.eat(TokenType.PLUSPLUS)
-                return ScalarIncrDecrNode(name, index_expr, None, 'post++')
-                
+                if (self.is_an_operator(self.current_token.type)):
+                    op = self.current_token
+                    self.eat(op.type)
+                    return ScalarIncrDecrNode(name, index_expr, BinOpNode(ScalarVarNode(name, index_expr), op.value, self.factor()), 'post++')
+                else:
+                    return ScalarIncrDecrNode(name, index_expr, None, 'post++')
+                    
             elif (self.current_token.type == TokenType.MINUSMINUS):
                 self.eat(TokenType.MINUSMINUS)
-                return ScalarIncrDecrNode(name, index_expr, None, 'post--')
+                if (self.is_an_operator(self.current_token.type)):
+                    op = self.current_token
+                    self.eat(op.type)
+                    return ScalarIncrDecrNode(name, index_expr, BinOpNode(ScalarVarNode(name, index_expr), op.value, self.factor()), 'post--')
+                else:
+                    return ScalarIncrDecrNode(name, index_expr, None, 'post--')
                 
             else:
                 return ScalarVarNode(name, index_expr)
@@ -617,19 +630,19 @@ class Parser:
         elif (token.type == TokenType.PLUSPLUS):
             # prefix incr
             self.eat(TokenType.PLUSPLUS)
-            expr = self.expression()
+            expr = self.factor()
             # expr should be of type 'ScalarVarNode'
             if not type(expr) is ScalarVarNode:
-                raise Exception("Parse error: Prefix ++ expects variable lvalue")
+                raise Exception("Parse error: Prefix ++ expects variable lvalue. Line " + str(self.lex.line_number))
             return ScalarIncrDecrNode(None, expr, None, '++')
             
         elif (token.type == TokenType.MINUSMINUS):
             # prefix decr
             self.eat(TokenType.MINUSMINUS)
-            expr = self.expression()
+            expr = self.factor()
             # expr should be of type 'ScalarVarNode'
             if not type(expr) is ScalarVarNode:
-                raise Exception("Parse error: Prefix -- expects variable lvalue")
+                raise Exception("Parse error: Prefix -- expects variable lvalue. Line " + str(self.lex.line_number))
             return ScalarIncrDecrNode(None, expr, None, '--')
             
         elif (token.type == TokenType.ID):
@@ -645,6 +658,24 @@ class Parser:
                     self.eat(TokenType.ID)
                     args = self.consume_list()
                     return BuiltInFunctionNode(name, fh, args)
+                    
+                # chop is special since its destructive, don't eval the array arg
+                # which is easy since it only takes one arg
+                elif (str(name) == 'chop'):
+                    eat_paren = False
+                    if (self.current_token.type == TokenType.LPAREN):
+                        self.eat(TokenType.LPAREN)
+                        eat_paren = True
+                    # '$' is optional
+                    if (self.current_token.type == TokenType.SCALAR):
+                        self.eat(TokenType.SCALAR)
+                    var_name = '_'
+                    if (self.current_token.type == TokenType.ID):
+                        var_name = self.current_token.value
+                        self.eat(TokenType.ID)
+                    if (eat_paren):
+                        self.eat(TokenType.RPAREN)
+                    return BuiltInFunctionNode(name, None, [ValueNode(var_name)])
                 
                 # shift is special since its destructive, don't eval the array arg
                 # which is easy since it only takes one arg
@@ -653,20 +684,27 @@ class Parser:
                     if (self.current_token.type == TokenType.LPAREN):
                         self.eat(TokenType.LPAREN)
                         eat_paren = True
-                    self.eat(TokenType.LIST)
-                    var_name = self.current_token.value
-                    self.eat(TokenType.ID)
+                    # '@' is optional
+                    if (self.current_token.type == TokenType.LIST):
+                        self.eat(TokenType.LIST)
+                    var_name = '_'
+                    if (self.current_token.type == TokenType.ID):
+                        var_name = self.current_token.value
+                        self.eat(TokenType.ID)
                     if (eat_paren):
                         self.eat(TokenType.RPAREN)
                     return BuiltInFunctionNode(name, None, [ValueNode(var_name)])
-                # shift is special since its destructive, don't eval the array arg
+                # unshift is special since its destructive, don't eval the array arg
                 # which is easy since it only takes one arg
                 elif (str(name) == 'unshift'):
                     eat_paren = False
                     if (self.current_token.type == TokenType.LPAREN):
                         self.eat(TokenType.LPAREN)
                         eat_paren = True
-                    self.eat(TokenType.LIST)
+                        
+                    # '@' is optional
+                    if (self.current_token.type == TokenType.LIST):
+                        self.eat(TokenType.LIST)
                     var_name = self.current_token.value
                     self.eat(TokenType.ID)
                     if (self.current_token.type == TokenType.COMMA):

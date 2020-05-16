@@ -1,33 +1,58 @@
 from Value import Value
+from regexp_funcs import *
 import sys
 import os
 import re
+import time
 
 import subprocess
+from subprocess import CalledProcessError
 import crypt
 
 class BuiltIns():
 
     @staticmethod
     def do_print(vm, fh, argv):
+        sep = vm.get_variable(',', 'scalar').stringify()
+        end = vm.get_variable('\\', 'scalar').stringify()
+        itr = 0
+        count = len(argv)-1
         if (len(argv) > 0):
-            if fh == None:
-                sys.stdout.write((argv[0]).stringify())
-            else:
-                vm.get_variable(fh, 'raw')._val.write((argv[0]).stringify())
+            for i in range(len(argv)-1, -1, -1):
+                if fh == None:
+                    sys.stdout.write(argv[i].stringify())
+                else:
+                    if str(fh) == 'stdout':
+                        sys.stdout.write(argv[i].stringify())
+                    else:
+                        vm.get_variable(fh, 'raw')._val.write(argv[i].stringify())
+                if (itr < count and itr != ''):
+                    sys.stdout.write(sep)
+                    itr += 1
         else:
             # print $_
             if fh == None:
                 sys.stdout.write(vm.get_variable('_', 'scalar').stringify())
             else:
-                vm.get_variable(fh, 'raw')._val.write(vm.get_variable('_', 'scalar').stringify())
+                if str(fh) == 'stdout':
+                    sys.stdout.write(vm.get_variable('_', 'scalar').stringify())
+                else:
+                    vm.get_variable(fh, 'raw')._val.write(vm.get_variable('_', 'scalar').stringify())
             
+        if end != '':
+            sys.stdout.write(end)
         vm.stack.push(Value(1))
         
     @staticmethod
     def do_die(vm, argv):
         if len(argv) > 0:
-            sys.stdout.write((argv[0]).stringify())
+            
+            if (type(argv[0] is str)):
+                vm.set_variable('!', Value(argv[0]), 'scalar')
+                print((argv[0]))
+            else:
+                vm.set_variable('!', Value(argv[0].stringify()), 'scalar')
+                print((argv[0]).stringify())
         else:
             sys.stdout.write("Died")
             
@@ -36,14 +61,19 @@ class BuiltIns():
     @staticmethod
     def do_backticks(vm, cmd):
         result = None
-        if os.name == 'nt':
-            # windows
-            result = subprocess.check_output(['cmd', '/c', cmd.stringify()], stderr=subprocess.STDOUT)
-        elif os.name.endswith('ix'):
-            # posix-ish - assume bash
-            result = subprocess.check_output(['/bin/bash', '-c', cmd.stringify()], stderr=subprocess.STDOUT)
-        else:
-            Builtins.do_die(vm, "Died.  Unknown OS to do backticks on")
+        try:
+            if os.name == 'nt':
+                # windows
+                result = subprocess.check_output(['cmd', '/c', cmd.stringify()], stderr=subprocess.STDOUT)
+            elif os.name.endswith('ix'):
+                # posix-ish - assume bash
+                result = subprocess.check_output(['/bin/bash', '-c', cmd.stringify()], stderr=subprocess.STDOUT)
+            else:
+                Builtins.do_die(vm, "Died.  Unknown OS to do backticks on")
+                
+            vm.set_variable('?', Value(0), 'scalar')
+        except CalledProcessError as e:
+            vm.set_variable('?', Value(e.returncode), 'scalar')
 
         vm.stack.push(Value(result))
             
@@ -53,13 +83,44 @@ class BuiltIns():
         
     @staticmethod
     def do_join(vm, argv):
-        ary = argv[0]
-        joiner = argv[1]
-        tmplist = []            
-        for i in range(len(ary)):
-            tmplist.append(str(ary[i]))
-        
-        vm.stack.push(Value(str(joiner).join(tmplist)))
+        ary = None
+        joiner = None
+        # perl 1 allowed any order of the args here.
+        # I think the intent was so that a literal list of values
+        # could be specified if the delimited was 1st arg, and 2Nd...Nth was items
+        if ((type(argv[1]) is str)):
+            #arg1 was bareword
+            ary = argv[1]
+            joiner = argv[0]
+        elif (argv[-1].type == "Scalar"):
+            #arg0 was Value obj but a scalar - so its a delimiter
+            ary = argv[0:-1]
+            joiner = argv[-1]
+        else:
+            BuiltIns.do_die(vm, [ "Join requires an array or list to join!" ])
+            
+        if (type(ary) is str):
+            # joining an array indicated by its bareword
+            tmplist = [] 
+            ary = vm.get_variable(ary, 'list')
+            if ary.type == "List":
+                for i in range(len(ary)):
+                    tmplist.append(str(ary[i]))
+            else:
+                BuiltIns.do_die(vm, [ "Join requires an array or list to join!" ])
+                
+            vm.stack.push(Value(str(joiner).join(tmplist)))
+        else:
+            # joining evaulated list of n-items with joiner
+            new_list = []
+            for i in ary:
+                if (i.type == "List"):
+                    new_list = i._val + new_list
+                else:
+                    new_list = [ i._val ] + new_list
+                    
+            vm.stack.push(Value(str(joiner).join(map(lambda x: str(x), new_list))))
+
         
     @staticmethod
     def do_keys(vm, argv):
@@ -117,8 +178,12 @@ class BuiltIns():
             
             ast.emit(v)
             v.run()
+            
+            # merge the scopes back out again
+            vm.current_scope = v.current_scope
+            vm.pgm_stack_frames = v.pgm_stack_frames
+
         except Exception as e:
-            raise(e)
             error_msg = str(e)
         
         # push the return value back to the main program
@@ -140,6 +205,8 @@ class BuiltIns():
         try:
             if filename.startswith('>>'):
                 fp = open(filename[2:], 'a')
+            elif filename.startswith('>-'):
+                fp = sys.stdout
             elif filename.startswith('>'):
                 fp = open(filename[1:], 'w')
             elif filename.startswith('<'):
@@ -242,9 +309,17 @@ class BuiltIns():
     # soooo picky!  This is just ugly.
     @staticmethod
     def do_sprintf(vm, argv):
-        fmt_str = str(argv[-1])
+        fmt_str = None
+        fmt_str = argv[-1]
+        if (fmt_str.type == "List"):
+            fmt_str = str(argv[-1][0])
+            argv = argv[-1][1:]
+            argv.reverse()
+        else:
+            fmt_str = str(argv[-1])
+            argv = argv[0:-1]
         strs = []
-        for i in range(0, len(argv)-1):
+        for i in range(0, len(argv)):
             if (argv[i].type == "List"):
                 sublist = []
                 for j in argv[i]._val:
@@ -252,7 +327,7 @@ class BuiltIns():
                 for j in sublist: strs.insert(0, j)
             else:
                 strs.insert(0, argv[i])
-            
+    
         fields = re.findall("%[0-9-.]*?([a-zA-Z])", fmt_str)
         idx = 0
         for field in fields:
@@ -269,12 +344,13 @@ class BuiltIns():
                     strs[idx] = strs[idx].stringify()
                 
             idx += 1
-            
+           
         if (len(fields) == 0):
             vm.stack.push(Value(fmt_str))
         else:
             if len(fields) < len(strs):
                 strs = strs[0:len(fields)]
+                
             vm.stack.push(Value(fmt_str % tuple(strs)))
         
     @staticmethod
@@ -335,4 +411,118 @@ class BuiltIns():
             vm.stack.push(Value(last_char))
         else:
             vm.stack.push(Value(None))
+            
+    @staticmethod
+    def do_push(vm, argv):
+        name = str(argv[-1])
+        v = vm.get_variable(name, 'list')
+
+        for i in range(0, len(argv)-1):
+            if (argv[i]._val != None):
+                if argv[i].type == 'Scalar':
+                    v = (v._val + [ argv[i]._val ])
+                else:
+                    v = v._val + argv[i]._val
+                vm.set_variable(name, Value(v), 'list')
+
+        v = vm.get_variable(name, 'list')      
+        vm.stack.push(Value(len(v._val)))
+        
+    @staticmethod
+    def do_pop(vm, argv):
+        v = vm.get_variable(str(argv[0]), 'list')
+        elem0 = Value(None)        
+        if (len(v) >= 1):
+            elem0 = v._val.pop()
+            vm.set_variable(str(argv[0]), v, 'list')
+        else:
+            vm.set_variable(str(argv[0]), Value(None), 'list')
+        vm.stack.push(elem0)
        
+    @staticmethod
+    def do_sleep(vm, argv):
+        if (len(argv) == 0):
+            time.sleep(float('Inf'))
+        else:
+            time.sleep(argv[-1].numerify())
+            
+        vm.stack.push(argv[-1])
+        
+    @staticmethod
+    def do_split(vm, argv):
+        spec = argv[-1]
+        var = argv[-2]
+        if (var._val == None):
+            var = vm.get_variable('_', 'scalar')
+            
+        if type(spec._val) != dict:
+            spec = Value({ 'spec': spec.stringify(), 'opts': '' })
+            
+        regex = spec._val['spec']
+        options = spec._val['opts']
+        
+        if regex == '':
+            ret = [i for i in var.stringify()]
+        else:
+            ret = re.split(regex, var.stringify(), parse_re_opts(vm, options))
+
+        
+        if (ret):
+            #ret = ' '.join(ret).split() # removes empty entries
+            mod_ret = []
+            for i in ret:
+                if i != '': mod_ret.append(i)
+                    
+            vm.stack.push(Value(mod_ret))
+        else:
+            vm.stack.push(var)
+        
+            
+    @staticmethod
+    def do_printf(vm, fh, argv):
+        BuiltIns.do_sprintf(vm, argv)
+        BuiltIns.do_print(vm, fh, [ vm.stack.pop() ])
+        
+    @staticmethod
+    def do_ord(vm, argv):
+        vm.stack.push(Value(ord(argv[-1].stringify()[0])))
+        
+    @staticmethod
+    def do_chr(vm, argv):
+        try:
+            val = chr(argv[-1].numerify())
+            vm.stack.push(Value(val))
+        except:
+            vm.stack.push(Value(None))
+            
+    @staticmethod
+    def do_hex(vm, argv):
+        try:
+            val = int((argv[-1].stringify()), 16)
+            vm.stack.push(Value(val))
+        except:
+            vm.stack.push(Value(None))
+            
+    @staticmethod
+    def do_oct(vm, argv):
+        try:
+            val = argv[-1].stringify()
+            if val.upper().startswith("0X"):
+                BuiltIns.do_hex(vm, argv)
+            elif val.startswith("0"):
+                val = int((argv[-1].stringify()), 8)
+                vm.stack.push(Value(val))
+            else:
+                val = int((argv[-1].stringify()), 10)
+                vm.stack.push(Value(val))
+        except:
+            vm.stack.push(Value(None))
+            
+    @staticmethod
+    def do_int(vm, argv):
+        try:
+            val = int((argv[-1].numerify()))
+            vm.stack.push(Value(val))
+        except:
+            vm.stack.push(Value(None))
+            

@@ -91,6 +91,14 @@ class Lexer:
             self.advance()
 
         return self.make_token(TokenType.INTEGER, Value(int(result, 16)))
+        
+    def parse_octal(self):
+        result = ""
+        while (self.current_char != '\0' and self.current_char.isdigit()):
+            result += self.current_char
+            self.advance()
+            
+        return self.make_token(TokenType.INTEGER, Value(int(result, 8)))
 
     def parse_string(self):
         """ Double quoted string """
@@ -148,11 +156,13 @@ class Lexer:
 
     def get_id(self):
         name = ""
+        first_char = True
         while (
             self.current_char != '\0' and (self.current_char.isalnum() or self.current_char == '_'
-                or (self.current_char in ['_', '@', '#', '!', '^', '%', '\\', '/', '*' ] 
-                    and self.prev_token.type == TokenType.SCALAR))):
+                or (self.current_char in ['_', '@', '#', '!', '^', '%', '\\', '/', '*', ',' ] 
+                    and self.prev_token.type == TokenType.SCALAR and first_char))):
             name += self.current_char
+            first_char = False
             self.advance()
 
         # check to see if its a label first
@@ -182,6 +192,8 @@ class Lexer:
             return self.make_token(TokenType.NEXT, Value('next'))
         elif (name == "redo"):
             return self.make_token(TokenType.REDO, Value('redo'))
+        elif (name == "goto"):
+            return self.make_token(TokenType.GOTO, Value('goto'))
         elif (name == "continue"):
             return self.make_token(TokenType.CONTINUE, Value('continue'))
         elif (name == "until"):
@@ -193,7 +205,9 @@ class Lexer:
         start_pos = self.pos
         match_regex = ''
         opts = ''
-        start_char = self.current_char
+        start_char = '/'
+        if not with_m:
+            start_char = self.current_char
         char_count = 1  # have to have 2 start char's for a good pat
         self.advance()
         last_char = None
@@ -240,17 +254,17 @@ class Lexer:
         search_spec = ''
         repl_spec = ''
         opts = ''
-        start_char = self.current_char
+        start_char = self.current_char # establish the start char
         self.advance()
         last_char = None
-        while (self.current_char != start_char and last_char != '\\') and self.current_char != '\0':
+        while (self.current_char != start_char) and self.current_char != '\0':
             last_char = self.current_char
             search_spec += self.current_char
             self.advance()
             
         self.advance()
         last_char = None
-        while (self.current_char != start_char and last_char != '\\') and self.current_char != '\0':
+        while (self.current_char != start_char) and self.current_char != '\0':
             last_char = self.current_char
             repl_spec += self.current_char
             self.advance()
@@ -273,8 +287,14 @@ class Lexer:
 
     def get_next_token(self):
         while (self.current_char != '\0'):
-            # first check if last char was SIGIL '$'
-            if ((self.pos != 0 and self.peek(-1) == '$')):
+            # TODO: fix this mess, does a lookbehind to see if previous 
+            # chars where '$' or '$#' or '@' so that we know we are to parse
+            # an ID, and not some other token, say REPEAT, or NOT, etc...
+            
+            # first check if last char was SIGIL '$' or '$#'
+            if ((self.pos != 0 and self.peek(-1) == '$') 
+                or (self.pos != 0 and self.peek(-1) == '#' and self.peek(-2) == '$')
+                or (self.pos != 0 and self.peek(-1) == '@')):
                 if self.current_char == ' ':
                     self.advance()
                     return self.make_token(TokenType.ID, Value(' '))
@@ -283,7 +303,7 @@ class Lexer:
                 # and rewinds, this destroys the whole concept of an accurate true 'previous token'
                 # hack alert - manually set the prev token type to SCALAR since previous char was '$'
                 if (self.current_char.isalnum() 
-                        or (self.current_char in ['_', '@', '#', '!', '^', '%', '\\', '/', '*' ])):
+                        or (self.current_char in ['_', '@', '#', '!', '^', '%', '\\', '/', '*', ',' ])):
                     self.prev_token = Token(TokenType.SCALAR, Value('$'))
                     return self.get_id()
         
@@ -299,24 +319,38 @@ class Lexer:
             if (self.current_char == '0' and self.peek() == 'x'):
                 self.advance()
                 self.advance()
-                return parse_hex()
+                return self.parse_hex()
 
             if (self.current_char == '0' and self.peek() == 'b'):
                 self.advance()
                 self.advance()
-                return parse_binary()
-
+                return self.parse_binary()
+                
             if (self.current_char == '#'):
                 self.advance()
                 return self.comment()
-
+                
+            # if (self.current_char == 'x'):
+                # self.advance()
+                # if (self.current_char == '='):
+                    # self.advance()
+                    # return self.make_token(TokenType.REPEAT_INCR, Value('x='))
+                # return self.make_token(TokenType.REPEAT, Value('x'))
+                
+            if (self.current_char == 'x' and self.peek() == '='):
+                self.advance()
+                self.advance()
+                return self.make_token(TokenType.REPEAT_INCR, Value('x='))
+                
             if (self.current_char.isdigit()):
                 if self.pos > 0:
                     # look back to see if prevous char was sigil
                     # so we don't muck up $1, $2, ... as id's
                     if self.peek(-1) not in [ '$', '@', '%' ]:
+                        if (self.current_char == '0'):
+                            return self.parse_octal()
                         return self.parse_number()
-                else:                
+                else:     
                     return self.parse_number()
 
             if (self.current_char == '"'):
@@ -329,7 +363,7 @@ class Lexer:
                 
             if (self.current_char == 'm' and not self.peek().isalpha()):
                 self.advance()
-                return self.parse_match_spec()
+                return self.parse_match_spec(True)
                 
             if ((self.current_char == 'y'  and not self.peek().isalpha()) 
                     or (self.current_char == 't' and self.peek() == 'r') and not self.peek(2).isalpha()):
@@ -378,6 +412,10 @@ class Lexer:
                     return self.make_token(TokenType.STR_GT, Value('gt'))
                 else:
                     return self.get_id()
+            
+            if (self.current_char == '?'):
+                self.advance()
+                return self.make_token(TokenType.TERNARY, Value('TERNARY'))
             
             if (self.current_char == '$' and self.peek() == ' '):
                 self.advance()
@@ -463,7 +501,7 @@ class Lexer:
                 return self.make_token(TokenType.COLON, Value(':'))
                 
             if (self.current_char == '/'):
-                ret = self.parse_match_spec()
+                ret = self.parse_match_spec(False)
                 if ret == None:
                     self.advance()
                     if (self.current_char == '='):

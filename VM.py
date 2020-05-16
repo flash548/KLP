@@ -1,7 +1,7 @@
 from Value import *
 from DataStack import DataStack
-from builtin_funcs import BuiltIns
 from regexp_funcs import *
+from builtin_funcs import BuiltIns
 import sys, os
 
 
@@ -221,6 +221,9 @@ class VM:
         elif (instr.opcode == "GOTO REDO LOOP"):
             self.go_to_loop_label("CONTINUE_LOOP", instr.args[0])
             
+        elif (instr.opcode == "GOTO"):
+            self.go_to_label(instr.args[0])
+            
         elif (instr.opcode == "BNZ"):
             if (self.stack.pop().boolify()):
                 self.pc = int(instr.args[0])
@@ -270,7 +273,16 @@ class VM:
 
         else:
             raise Exception("Unknown Instruction: " + instr.opcode)
-            
+     
+    def go_to_label(self, label):
+    
+        # search the full pgm stack (current one anyways)
+        for i in range(0, len(self.pgm_stack)):
+                if self.pgm_stack[i].opcode == "LABEL" and self.pgm_stack[i].args[0] == label:
+                    self.pc = i
+                    return
+        
+        
     def go_to_loop_label(self, label, loop_name):
         if loop_name == None:
             for i in range(self.pc, len(self.pgm_stack)):
@@ -333,7 +345,6 @@ class VM:
     def perform_op(self, op):
         _right = self.stack.pop()
         _left = self.stack.pop()
-
         if (op == '+'):
             self.stack.push(_left + _right)
         elif (op == '-'):
@@ -386,6 +397,8 @@ class VM:
             self.stack.push(_left << _right)
         elif (op == '>>'):
             self.stack.push(_left >> _right)
+        elif (op == 'x'):
+            self.stack.push(Value(_left.stringify() * int(_right.numerify())))
         else:
             raise Exception("Invalid operation: " + op)
 
@@ -433,11 +446,30 @@ class VM:
         v = self.get_variable(name, 'list')
         self.stack.push(Value(len(v)-1))
             
-    def perform_interpolated_push(self, val):
+    def perform_interpolated_push(self, val, replace_slashes=True):
         """ Interpolate a string before pushing it onto stack as a const """
         
+        def valid_var_char(c):
+            return (c.isalnum()) or (c == '_')
+        
+        
+        def next_char_is(c):
+            if i+1 >= len(string_const):
+                if c == ' ':
+                    return True # end of string
+                else:
+                    return False
+            else:
+                if c == ' ':
+                    return (string_const[i+1].isspace())
+                else:
+                    return c == string_const[i+1]
+        
         string_const = str(val)
-        vars = {}
+        
+        # stores 'var strings' in the string for
+        # each variable encountered in order
+        vars = []
         
         # look for sigils and get varnames
         # varnames can be encased in {} as well
@@ -458,47 +490,72 @@ class VM:
                 sigil = string_const[i]
                 in_var = True
                 var_to_replace += string_const[i]
+                if (i + 1 < len(string_const)):
+                    if (string_const[i+1] in ['_', '@', '#', '!', '^', '%', '\\', '/', '*', ',' ]):
+                        var_to_replace += string_const[i+1]
+                        i += 2
+                        continue
+            elif string_const[i] == '\\' and i+1 < len(string_const) and not in_var:
+                i += 1
             elif (string_const[i] == '{' and in_var):
                 var_to_replace += '{'
                 in_curly = True
-            elif (string_const[i] == '}' and in_curly):
+            elif (string_const[i] == '}' and in_curly and not next_char_is('}')):
                 var_to_replace += '}'
-                vars[var_to_replace] = varname
-                varname = ""
+                vars.append(var_to_replace)
                 var_to_replace = ""
                 in_var = False
                 in_curly = False
-            elif (string_const[i].isspace() and in_var and in_curly):
-                raise Exception("Invalid variable string: " + varname)
-            elif ((not string_const[i].isalnum() and string_const[i] != '_') and in_var):
-                vars[var_to_replace] = varname
-                varname = ""
-                var_to_replace = ""
+            elif (not valid_var_char(string_const[i]) and in_var and in_curly):
+                raise Exception("Invalid string spec: " + string_const)
+            elif (not valid_var_char(string_const[i]) and in_var):
+                vars.append(var_to_replace)
                 in_var = False
+                var_to_replace = ""
             elif (in_var):
                 var_to_replace += string_const[i]
-                varname += string_const[i]
 
             i += 1
     
         # if we get here and we're 'in_curly' = True then syntax errpr
         if in_curly:
-            raise Exception("Invalid variable string in string: " + varname)
+            raise Exception("Invalid variable string in string: " + var_to_replace)
         
         if in_var:
-            vars[var_to_replace] = varname
-            
+            vars.append(var_to_replace)
+
         # now replace all the vars with their looked up values
         #  these resolves will be in scalar context as a string
         for var in vars:
-            var_kind = None
-            if sigil == '$': var_kind = 'scalar'
-            elif sigil == '@': var_kind = 'list'
-            #elif sigil == '%': var_kind = 'hash'
+            # this is probably terribly slow and non-efficient...but
+            from Lexer import Lexer
+            from Parser import Parser
+            from TokenType import TokenType
+            l = Lexer("  " + var)
+            p = Parser(l)
+            p.restrict_string_interpolation = True
+            ast = p.program()
+            vm = VM()
+            ast.emit(vm)
+            # merge in existing scope, stack, subs, etc
+            vm.current_scope = self.current_scope
+            vm.pgm_stack_frames = self.pgm_stack_frames
+            vm.run()
+            val = vm.stack.pop().stringify()
+            pos = 0
+            pos = string_const.find(var, pos)
+            while pos >= 0:
+                if pos == 0:
+                    string_const.replace(var, val, 1)
+                else:
+                    if string_const[pos-1] != '\\':
+                        string_const = string_const.replace(var, val)
+                pos += len(var)
+                pos = string_const.find(var, pos)
             
-            v = self.get_variable(vars[var].replace('{', '').replace('}', ''), var_kind)
-            string_const = string_const.replace(var, str(v.scalar_context()))
-                
+        
+        if replace_slashes:
+            string_const = string_const.replace("\\", "")
         self.stack.push(Value(string_const))
         
 
@@ -602,6 +659,8 @@ class VM:
             BuiltIns.do_index(self, args)
         elif (name == 'sprintf'):
             BuiltIns.do_sprintf(self, args)
+        elif (name == 'printf'):
+            BuiltIns.do_printf(self, fh, args)
         elif (name == 'seek'):
             BuiltIns.do_seek(self, args)
         elif (name == 'tell'):
@@ -610,6 +669,24 @@ class VM:
             BuiltIns.do_crypt(self, args)
         elif (name == 'chop'):
             BuiltIns.do_chop(self, args)
+        elif (name == 'sleep'):
+            BuiltIns.do_sleep(self, args)
+        elif (name == 'push'):
+            BuiltIns.do_push(self, args)
+        elif (name == 'pop'):
+            BuiltIns.do_pop(self, args)
+        elif (name == 'split'):
+            BuiltIns.do_split(self, args)
+        elif (name == 'ord'):
+            BuiltIns.do_ord(self, args)
+        elif (name == 'chr'):
+            BuiltIns.do_chr(self, args)
+        elif (name == 'hex'):
+            BuiltIns.do_hex(self, args)
+        elif (name == 'oct'):
+            BuiltIns.do_oct(self, args)
+        elif (name == 'int'):
+            BuiltIns.do_int(self, args)
         else:
             raise Exception("Undefined built-in: " + name)
             

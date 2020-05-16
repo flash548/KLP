@@ -5,15 +5,19 @@ from VM import *
 
 print "\n------- NEW RUN -------\n"
 
+fp = open('t/op.subst')
+code = fp.read()
+fp.close()
 
-l = Lexer("""
-
-@arr = (1,2,3);
-$x= 'abc';
-$a=chop $x;
-print $a;
-print $x;
+#l = Lexer(code)
+l = Lexer(""" 
+$_ = "x";
+print "\$x $x";
+s/x/\$x $x/;
+print "#3\t:$_: eq :\$x foo:\n";
+if ($_ eq '$x foo') {print "ok 3\n";} else {print "not ok 3\n";}
 """)
+
 
 p = Parser(l)
 ast = p.program()
@@ -24,4 +28,4 @@ v.run()
 
 print "\n\n"
 v.dump_current_scope()
-#v.dump_stack()
+v.dump_stack()

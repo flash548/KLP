@@ -18,21 +18,21 @@ class Parser:
         # used by postfix incr/decr
         self.incr_decr_op = None
         
+        #
+        self.restrict_string_interpolation = False
+        
 
     def error(self):
         raise Exception("Invalid syntax on line: " + str(self.lex.line_number))
-        
+      
+   
     def is_an_operator(self, tok):
-        return tok in [ TokenType.PLUS,
-                    TokenType.MINUS,
+        return tok in [ 
                     TokenType.STR_CONCAT,
                     TokenType.LOGAND,
                     TokenType.LOGOR,
                     TokenType.LSHIFT,
                     TokenType.RSHIFT,
-                    TokenType.MUL,
-                    TokenType.DIV,
-                    TokenType.POW,
                     TokenType.AND,
                     TokenType.OR,
                     TokenType.XOR,
@@ -63,7 +63,7 @@ class Parser:
                     and self.current_token.type != TokenType.EOF):
                 self.current_token = self.lex.get_next_token()
         else:
-            print "Token Eat error: " + tokType, self.current_token.type
+            print "Token Eat error: " + tokType, self.current_token.type + "(" + str(self.current_token.value) + ")"
             self.error()
 
     def eat_end_of_statement(self):
@@ -155,6 +155,14 @@ class Parser:
                 label = str(self.current_token.value)
                 self.eat(TokenType.ID)
             return self.check_for_conditional(RedoNode(label))
+        
+        elif (self.current_token.type == TokenType.GOTO):
+            self.eat(TokenType.GOTO)
+            label = None
+            if self.current_token.type == TokenType.ID:
+                label = str(self.current_token.value)
+                self.eat(TokenType.ID)
+            return self.check_for_conditional(GotoNode(label))
             
         else:
             return self.check_for_conditional(self.expression())
@@ -437,10 +445,17 @@ class Parser:
                 TokenType.STR_LE,
                 TokenType.STR_GT,
                 TokenType.STR_GE,
-                TokenType.MOD):
+                TokenType.MOD,
+                TokenType.REPEAT,
+                TokenType.ID):
 
             token = self.current_token
-            self.eat(self.current_token.type)
+            if (token.type == TokenType.ID and str(token.value) == 'x'):
+                self.eat(TokenType.ID)
+                token.type = TokenType.REPEAT
+                token.value = Value('x')
+            else:
+                self.eat(self.current_token.type)
             result = BinOpNode(result, token.value, self.factor())
             
         return result
@@ -519,6 +534,10 @@ class Parser:
                 self.eat(TokenType.DECR)
                 return ScalarIncrDecrNode(name, index_expr, self.expression(), '-=')
                 
+            elif (self.current_token.type == TokenType.REPEAT_INCR):
+                self.eat(TokenType.REPEAT_INCR)
+                return ScalarIncrDecrNode(name, index_expr, self.expression(), 'x=')
+                
             elif (self.current_token.type == TokenType.MUL_INCR):
                 self.eat(TokenType.MUL_INCR)
                 return ScalarIncrDecrNode(name, index_expr, self.expression(), '*=')
@@ -573,6 +592,13 @@ class Parser:
             spec = self.current_token.value
             self.eat(TokenType.SUBS_SPEC)
             return SubsNode(None, None, spec, False)
+            
+        elif (self.current_token.type == TokenType.TERNARY):
+            self.eat(TokenType.TERNARY)
+            true_expr = self.expression()
+            self.eat(TokenType.COLON)
+            false_expr = self.expression()
+            return TernaryNode(true_expr, false_expr)
         
         # '@' sigil -> interprets rvalue expr in list context
         elif (token.type == TokenType.LIST):
@@ -600,6 +626,9 @@ class Parser:
                 name = str(self.current_token.value)
                 self.eat(TokenType.ID)
             return ListMaxIndexNode(name)
+            
+        elif (self.restrict_string_interpolation):
+            return None
                 
         elif (token.type == TokenType.LBRACKET):
             self.eat(TokenType.LBRACKET)
@@ -650,7 +679,7 @@ class Parser:
             self.eat(TokenType.ID)
             if (str(name) in TokenType.BUILTINS):
                 # its a builtin - there are some special cases
-                if (str(name) == 'print'
+                if (str(name) in [ 'print', 'printf' ]
                         and self.current_token.type == TokenType.ID
                         and str(self.current_token.value) not in TokenType.BUILTINS):
                     # must be a FILEHANDLE BAREWORD
@@ -658,7 +687,53 @@ class Parser:
                     self.eat(TokenType.ID)
                     args = self.consume_list()
                     return BuiltInFunctionNode(name, fh, args)
+                 
+                # push is special since its destructive, don't eval the array arg
+                elif (str(name) == 'push'):
+                    eat_paren = False
+                    if (self.current_token.type == TokenType.LPAREN):
+                        self.eat(TokenType.LPAREN)
+                        eat_paren = True
+                        
+                    # '@' is optional
+                    if (self.current_token.type == TokenType.LIST):
+                        self.eat(TokenType.LIST)
+                    var_name = self.current_token.value
+                    self.eat(TokenType.ID)
+                    if (self.current_token.type == TokenType.COMMA):
+                        self.eat(TokenType.COMMA)
+                    else:
+                        return BuiltInFunctionNode(name, None, [ValueNode(var_name), ValueNode(Value(None))])
                     
+                    args = self.consume_list()
+                    if (eat_paren):
+                        self.eat(TokenType.RPAREN)
+                    return BuiltInFunctionNode(name, None, [ValueNode(var_name)] + args)
+                    
+                # split is special since its first arg is a match_spec
+                elif (str(name) == 'split'):
+                    eat_paren = False
+                    if (self.current_token.type == TokenType.LPAREN):
+                        self.eat(TokenType.LPAREN)
+                        eat_paren = True
+                    
+                    m_spec = None
+                    var_expr = [ValueNode(Value(None))]
+                    if (self.current_token.type == TokenType.MATCH_SPEC):
+                        m_spec = self.current_token.value
+                        self.eat(TokenType.MATCH_SPEC)
+                        if (self.current_token.type == TokenType.COMMA):
+                            self.eat(TokenType.COMMA)
+                            var_expr = self.consume_list()
+                        if (eat_paren):
+                            self.eat(TokenType.RPAREN)
+                        return BuiltInFunctionNode(name, None, [ValueNode(m_spec)]+var_expr)
+                    else:
+                        args = self.consume_list()
+                        if (eat_paren):
+                            self.eat(TokenType.RPAREN)
+                        return BuiltInFunctionNode(name, None, args)
+                 
                 # chop is special since its destructive, don't eval the array arg
                 # which is easy since it only takes one arg
                 elif (str(name) == 'chop'):
@@ -676,10 +751,10 @@ class Parser:
                     if (eat_paren):
                         self.eat(TokenType.RPAREN)
                     return BuiltInFunctionNode(name, None, [ValueNode(var_name)])
-                
-                # shift is special since its destructive, don't eval the array arg
+                                    
+                # shift/pop is special since its destructive, don't eval the array arg
                 # which is easy since it only takes one arg
-                elif (str(name) == 'shift'):
+                elif (str(name) in [ 'shift', 'pop' ]):
                     eat_paren = False
                     if (self.current_token.type == TokenType.LPAREN):
                         self.eat(TokenType.LPAREN)
@@ -694,8 +769,8 @@ class Parser:
                     if (eat_paren):
                         self.eat(TokenType.RPAREN)
                     return BuiltInFunctionNode(name, None, [ValueNode(var_name)])
+                    
                 # unshift is special since its destructive, don't eval the array arg
-                # which is easy since it only takes one arg
                 elif (str(name) == 'unshift'):
                     eat_paren = False
                     if (self.current_token.type == TokenType.LPAREN):
@@ -764,7 +839,6 @@ class Parser:
             If ender is a SEMICOLON, stop processig the list, but don't eat it
             since the statement() func will take care of eating end of statements
         """
-        
         list_elems = []
         if ender == None:
             end_token = TokenType.SEMICOLON

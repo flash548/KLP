@@ -139,7 +139,7 @@ class UnOpNode(AST):
 
 class LabelNode(AST):
 
-    def __init(self, name):
+    def __init__(self, name):
         self._name = name
         
     def emit(self, vm):
@@ -294,7 +294,27 @@ class IfNode(AST):
         end_of_if_address = vm.get_current_address()
         for i in jmp_addresses:
             vm.pgm_stack[i] = Instruction("JMP", [end_of_if_address])
+            
+class TernaryNode(AST):
 
+    def __init__(
+            self,
+            true_expr, false_expr):
+        self._true = true_expr
+        self._false = false_expr
+
+    def emit(self, vm):
+       initial = vm.get_current_address()
+       vm.append_instruction(Instruction("BZ", [None]))    
+       self._true.emit(vm)
+       true_jmp = vm.get_current_address()
+       vm.append_instruction(Instruction("JMP", [None]))
+       end_true = vm.get_current_address()
+       vm.pgm_stack[initial] = Instruction("BZ", [ end_true ])
+       self._false.emit(vm)
+       end_false = vm.get_current_address()
+       vm.pgm_stack[true_jmp] = Instruction("JMP", [ end_false ])
+       
 class ForNode(AST):
 
     def __init__(self, initial, cond, end_expr, body, name):
@@ -401,6 +421,14 @@ class RedoNode(AST):
     
     def emit(self, vm):
         vm.append_instruction(Instruction("GOTO REDO LOOP", [ self._name ]))
+        
+class GotoNode(AST):
+
+    def __init__(self, name=None):
+        self._name = name
+    
+    def emit(self, vm):
+        vm.append_instruction(Instruction("GOTO", [ self._name ]))
 
 class IndexVar(AST):
 
@@ -498,6 +526,16 @@ class ScalarIncrDecrNode(AST):
             vm.append_instruction(Instruction("PUSH SCALAR VAR", [ self._name, has_idx ]))
             self._rval.emit(vm)
             vm.append_instruction(Instruction("BINOP", [str('+')]))
+            vm.append_instruction(Instruction("SCALAR ASSIGN", [ self._name, has_idx ]))
+            
+        elif (self._op == 'x='):
+            has_idx = False
+            if self._expr:
+                has_idx = True
+                self._expr.emit(vm)
+            vm.append_instruction(Instruction("PUSH SCALAR VAR", [ self._name, has_idx ]))
+            self._rval.emit(vm)
+            vm.append_instruction(Instruction("BINOP", [str('x')]))
             vm.append_instruction(Instruction("SCALAR ASSIGN", [ self._name, has_idx ]))
             
         elif (self._op == '-='):

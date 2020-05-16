@@ -183,10 +183,13 @@ class Value(object):
             
     def __getitem__(self, key):
         if (self.type == "List"):
-            if key >= len(self._val):
-                return Value(None)
-            else:
+            if type(key) is slice:
                 return self._val[key]
+            else:
+                if key >= len(self._val):
+                    return Value(None)
+                else:
+                    return self._val[key]
         elif (self.type == "Hash"):
             if key in self._val:
                 return self._val[key]

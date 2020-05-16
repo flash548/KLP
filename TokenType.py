@@ -54,6 +54,7 @@ class TokenType:
     STR_INCR = 'STR_INCR' # .=
     INCR = 'INCR'
     DECR = 'DECR'
+    REPEAT_INCR = 'REPEAT_INCR' # x=
     MUL_INCR = 'MUL_INCR' # *=
     DIV_INCR = 'DIV_INCR' # /=
     XOR_INCR = 'XOR_INCR' # ^=
@@ -65,6 +66,7 @@ class TokenType:
     NEXT = 'NEXT'
     LAST = 'LAST'
     REDO = 'REDO'
+    GOTO = 'GOTO'
     LABEL = 'LABEL'
     CONTINUE = 'CONTINUE'
     UNTIL = 'UNTIL'
@@ -100,6 +102,8 @@ class TokenType:
     TRANS_SPEC = 'TRANS_SPEC'
     SUBS_SPEC = 'SUBS_SPEC'
     SPACESHIP = 'SPACESHIP'
+    TERNARY = 'TERNARY'
+    REPEAT = 'REPEAT'
     
     BUILTINS = [ 
         'print',
@@ -121,4 +125,15 @@ class TokenType:
         'sprintf',
         'crypt',
         'chop',
+        'sleep',
+        'push',
+        'pop',
+        'split',
+        'printf',
+        'ord',
+        'chr',
+        'int',
+        'hex',
+        'oct',
+        
     ]

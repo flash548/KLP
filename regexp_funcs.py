@@ -106,6 +106,11 @@ def do_trans_op(vm, name, index_expr, spec, invert):
     
     trans_spec = spec._val['spec']
     repl_spec = spec._val['repl']
+    
+    # interpolate it
+    vm.perform_interpolated_push(repl_spec)
+    repl_spec = vm.stack.pop().stringify()
+    
     ret = transliteration(v.stringify(), trans_spec, repl_spec)
     
     if (index_expr == True):
@@ -148,6 +153,15 @@ def do_subs_op(vm, name, index_expr, spec, invert):
     
     regex = spec._val['spec']
     repl = spec._val['repl']
+    
+    # interpolate it
+    vm.perform_interpolated_push(regex, False)
+    regex = vm.stack.pop().stringify()
+    
+    # interpolate it
+    vm.perform_interpolated_push(repl)
+    repl = vm.stack.pop().stringify()
+    
     options = spec._val['opts']
     re_obj = re.compile(regex, parse_re_opts(vm, options))
     ret = re_obj.search(v.stringify())

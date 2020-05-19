@@ -77,7 +77,8 @@ class Parser:
     # statement_list <- statement+
     def statement_list(self):
         nodes = []
-        node = self.statement()
+
+        node = self.statement()          
         nodes.append(node)
 
         while self.current_token.type != TokenType.EOF:
@@ -425,7 +426,7 @@ class Parser:
 
     def term(self):
         result = self.factor()
-        
+
         while self.current_token.type in (
                 TokenType.MUL,
                 TokenType.DIV,
@@ -455,7 +456,7 @@ class Parser:
                 token.type = TokenType.REPEAT
                 token.value = Value('x')
             else:
-                self.eat(self.current_token.type)
+                self.eat(token.type)
             result = BinOpNode(result, token.value, self.factor())
             
         return result

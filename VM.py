@@ -446,30 +446,11 @@ class VM:
         v = self.get_variable(name, 'list')
         self.stack.push(Value(len(v)-1))
             
-    def perform_interpolated_push(self, val, replace_slashes=True):
+    def perform_interpolated_push(self, val):
         """ Interpolate a string before pushing it onto stack as a const """
         
-        def valid_var_char(c):
-            return (c.isalnum()) or (c == '_')
-        
-        
-        def next_char_is(c):
-            if i+1 >= len(string_const):
-                if c == ' ':
-                    return True # end of string
-                else:
-                    return False
-            else:
-                if c == ' ':
-                    return (string_const[i+1].isspace())
-                else:
-                    return c == string_const[i+1]
-        
         string_const = str(val)
-        
-        # stores 'var strings' in the string for
-        # each variable encountered in order
-        vars = []
+        vars = {}
         
         # look for sigils and get varnames
         # varnames can be encased in {} as well
@@ -489,73 +470,55 @@ class VM:
                     and string_const[-1] not in ('$', '@') ):
                 sigil = string_const[i]
                 in_var = True
+                if (i - 1 >= 0) and string_const[i-1] == '\\':
+                    var_to_replace += '\\'
                 var_to_replace += string_const[i]
-                if (i + 1 < len(string_const)):
-                    if (string_const[i+1] in ['_', '@', '#', '!', '^', '%', '\\', '/', '*', ',' ]):
-                        var_to_replace += string_const[i+1]
-                        i += 2
-                        continue
-            elif string_const[i] == '\\' and i+1 < len(string_const) and not in_var:
-                i += 1
             elif (string_const[i] == '{' and in_var):
                 var_to_replace += '{'
                 in_curly = True
-            elif (string_const[i] == '}' and in_curly and not next_char_is('}')):
+            elif (string_const[i] == '}' and in_curly):
                 var_to_replace += '}'
-                vars.append(var_to_replace)
+                vars[var_to_replace] = varname
+                varname = ""
                 var_to_replace = ""
                 in_var = False
                 in_curly = False
-            elif (not valid_var_char(string_const[i]) and in_var and in_curly):
-                raise Exception("Invalid string spec: " + string_const)
-            elif (not valid_var_char(string_const[i]) and in_var):
-                vars.append(var_to_replace)
-                in_var = False
+            elif (string_const[i].isspace() and in_var and in_curly):
+                raise Exception("Invalid variable string: " + varname)
+            elif ((not string_const[i].isalnum() and string_const[i] != '_') and in_var):
+                vars[var_to_replace] = varname
+                varname = ""
                 var_to_replace = ""
+                in_var = False
             elif (in_var):
                 var_to_replace += string_const[i]
-
+                varname += string_const[i]
+                
             i += 1
     
         # if we get here and we're 'in_curly' = True then syntax errpr
         if in_curly:
-            raise Exception("Invalid variable string in string: " + var_to_replace)
+            raise Exception("Invalid variable string in string: " + varname)
         
         if in_var:
-            vars.append(var_to_replace)
-
+            vars[var_to_replace] = varname
+            
         # now replace all the vars with their looked up values
         #  these resolves will be in scalar context as a string
         for var in vars:
-            # this is probably terribly slow and non-efficient...but
-            from Lexer import Lexer
-            from Parser import Parser
-            from TokenType import TokenType
-            l = Lexer("  " + var)
-            p = Parser(l)
-            p.restrict_string_interpolation = True
-            ast = p.program()
-            vm = VM()
-            ast.emit(vm)
-            # merge in existing scope, stack, subs, etc
-            vm.current_scope = self.current_scope
-            vm.pgm_stack_frames = self.pgm_stack_frames
-            vm.run()
-            val = vm.stack.pop().stringify()
-            pos = 0
-            pos = string_const.find(var, pos)
-            while pos >= 0:
-                if pos == 0:
-                    string_const.replace(var, val, 1)
-                else:
-                    if string_const[pos-1] != '\\':
-                        string_const = string_const.replace(var, val)
-                pos += len(var)
-                pos = string_const.find(var, pos)
+            sigil = var[0]
+            var_kind = None
+            if var[0] == '\\': 
+                continue
+            if sigil == '$': var_kind = 'scalar'
+            elif sigil == '@': var_kind = 'list'
+            #elif sigil == '%': var_kind = 'hash'
             
-        
-        if replace_slashes:
-            string_const = string_const.replace("\\", "")
+            v = self.get_variable(vars[var].replace('{', '').replace('}', ''), var_kind)
+            string_const = re.sub("(?<!\\\\)\\"+var, str(v.scalar_context()), string_const)
+         
+        string_const = string_const.replace('\\$', '$')
+        string_const = string_const.replace('\\@', '@')   
         self.stack.push(Value(string_const))
         
 
@@ -687,6 +650,34 @@ class VM:
             BuiltIns.do_oct(self, args)
         elif (name == 'int'):
             BuiltIns.do_int(self, args)
+        elif (name == 'time'):
+            BuiltIns.do_time(self, args)
+        elif (name == 'gmtime'):
+            BuiltIns.do_gmtime(self, args)
+        elif (name == 'localtime'):
+            BuiltIns.do_localtime(self, args)
+        elif (name == 'stat'):
+            BuiltIns.do_stat(self, args)
+        elif (name == 'substr'):
+            BuiltIns.do_substr(self, args)
+        elif (name == 'exp'):
+            BuiltIns.do_exp(self, args)
+        elif (name == 'log'):
+            BuiltIns.do_log(self, args)
+        elif (name == 'sqrt'):
+            BuiltIns.do_sqrt(self, args)
+        elif (name == 'chdir'):
+            BuiltIns.do_chdir(self, args)
+        elif (name == 'umask'):
+            BuiltIns.do_umask(self, args)
+        elif (name == 'rename'):
+            BuiltIns.do_rename(self, args)
+        elif (name == 'unlink'):
+            BuiltIns.do_unlink(self, args)
+        elif (name == 'link'):
+            BuiltIns.do_link(self, args)
+        elif (name == 'chmod'):
+            BuiltIns.do_chmod(self, args)
         else:
             raise Exception("Undefined built-in: " + name)
             

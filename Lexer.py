@@ -206,7 +206,7 @@ class Lexer:
         match_regex = ''
         opts = ''
         start_char = '/'
-        if not with_m:
+        if with_m:
             start_char = self.current_char
         char_count = 1  # have to have 2 start char's for a good pat
         self.advance()

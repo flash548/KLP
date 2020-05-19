@@ -5,17 +5,15 @@ from VM import *
 
 print "\n------- NEW RUN -------\n"
 
-fp = open('t/op.subst')
+fp = open('t/op.eval')
 code = fp.read()
 fp.close()
 
-#l = Lexer(code)
+# l = Lexer(code)
 l = Lexer(""" 
-$_ = "x";
-print "\$x $x";
-s/x/\$x $x/;
-print "#3\t:$_: eq :\$x foo:\n";
-if ($_ eq '$x foo') {print "ok 3\n";} else {print "not ok 3\n";}
+$^ = "hello";
+print $@;
+#if ($@ eq "") { print "SDF"; }
 """)
 
 

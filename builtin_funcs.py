@@ -4,6 +4,7 @@ import sys
 import os
 import re
 import time
+import math
 
 import subprocess
 from subprocess import CalledProcessError
@@ -57,6 +58,13 @@ class BuiltIns():
             sys.stdout.write("Died")
             
         vm.die()
+        
+    @staticmethod
+    def do_exit(vm, argv):
+        code = 0
+        if len(argv > 0):
+            code = argv[-1].numerify()
+        sys.exit(code)
         
     @staticmethod
     def do_backticks(vm, cmd):
@@ -525,4 +533,137 @@ class BuiltIns():
             vm.stack.push(Value(val))
         except:
             vm.stack.push(Value(None))
+            
+    @staticmethod
+    def do_time(vm, argv):
+        vm.stack.push(Value(int(time.time())))
+        
+    @staticmethod
+    def do_localtime(vm, argv):
+        time_stamp = time.time()
+        if (len(argv) > 0):
+            time_stamp = argv[-1].numerify()
+        parts = time.localtime(time_stamp)
+        # $sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst
+        parts_new = [ Value(parts.tm_sec), Value(parts.tm_min), Value(parts.tm_hour), 
+                    Value(parts.tm_mday), Value(parts.tm_mon), Value(parts.tm_year),
+                    Value(parts.tm_wday), Value(parts.tm_yday), Value(parts.tm_isdst) ]
+        vm.stack.push(Value(parts_new))
+        
+    @staticmethod
+    def do_gmtime(vm, argv):
+        time_stamp = time.time()
+        if (len(argv) > 0):
+            time_stamp = argv[-1].numerify()
+        parts = time.gmtime(time_stamp)
+        # $sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst
+        parts_new = [ Value(parts.tm_sec), Value(parts.tm_min), Value(parts.tm_hour), 
+                    Value(parts.tm_mday), Value(parts.tm_mon), Value(parts.tm_year),
+                    Value(parts.tm_wday), Value(parts.tm_yday), Value(parts.tm_isdst) ]
+        vm.stack.push(Value(parts_new))
+        
+    @staticmethod
+    def do_stat(vm, argv):
+        f = None
+        if (type(argv[-1]) is Value):
+            f = argv[-1].stringify()
+        else:
+            f = vm.get_variable(argv[-1], 'raw')._val.name
+        try:
+            parts = os.stat(f)
+            #$dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size,$atime,$mtime,$ctime,
+            #   $blksize,$blocks
+            parts_new = [ Value(parts.st_dev), Value(parts.st_ino), Value(parts.st_mode),
+                        Value( parts.st_nlink), Value(parts.st_uid), Value(parts.st_gid),
+                        Value(parts.st_rdev), Value(parts.st_size), Value(parts.st_atime),
+                        Value(parts.st_mtime), Value(parts.st_ctime), Value(parts.st_blksize),
+                        Value(parts.st_blocks) ]
+            vm.stack.push(Value(parts_new))
+        except:
+            vm.stack.push(Value(None))
+        
+    @staticmethod
+    def do_substr(vm, argv):
+        s = argv[-1].stringify()
+        off = int(argv[-2].numerify())
+        length = int(argv[-3].stringify())
+        
+        vm.stack.push(Value(s[off:length]))
+        
+    @staticmethod
+    def do_exp(vm, argv):
+        s = argv[-1].numerify()
+        vm.stack.push(Value(math.exp(s)))
+        
+    @staticmethod
+    def do_log(vm, argv):
+        s = argv[-1].numerify()
+        vm.stack.push(Value(math.log(s)))
+    
+    @staticmethod
+    def do_sqrt(vm, argv):
+        s = argv[-1].numerify()
+        vm.stack.push(Value(math.sqrt(s)))	
+        
+    @staticmethod
+    def do_chdir(vm, argv):
+        s = argv[-1].stringify()
+        try:
+            os.chdir(s)
+            vm.stack.push(Value(1))
+        except:
+            vm.stack.push(Value(0))
+            
+    @staticmethod
+    def do_umask(vm, argv):
+        s = argv[-1].numerify()
+        try:
+            ret = os.umask(s)
+            vm.stack.push(Value(ret))
+        except:
+            vm.stack.push(Value(0))
+            
+    @staticmethod
+    def do_rename(vm, argv):
+        old = argv[-1].stringify()
+        new = argv[-2].stringify()
+        try:
+            os.rename(old, new)
+            vm.stack.push(Value(1))
+        except:
+            vm.stack.push(Value(0))
+            
+    @staticmethod
+    def do_unlink(vm, argv):
+        count = 0
+        for i in range(len(argv)-1, -1, -1):
+            try:
+                os.unlink(argv[i].stringify())
+                count += 1
+            except:
+                pass
+        vm.stack.push(Value(count))
+        
+    @staticmethod
+    def do_link(vm, argv):
+        old = argv[-1].stringify()
+        new = argv[-2].stringify()
+        try:
+            os.link(old, new)
+            vm.stack.push(Value(1))
+        except:
+            vm.stack.push(Value(0))        
+            
+    @staticmethod
+    def do_chmod(vm, argv):
+        mode = argv[-1].numerify()
+        argv = argv[0:-1]
+        count = 0
+        for i in range(len(argv)-1, -1, -1):
+            try:
+                os.chmod(argv[i].stringify(), mode)
+                count += 1
+            except:
+                pass
+        vm.stack.push(Value(count))
             

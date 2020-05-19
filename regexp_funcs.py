@@ -155,12 +155,8 @@ def do_subs_op(vm, name, index_expr, spec, invert):
     repl = spec._val['repl']
     
     # interpolate it
-    vm.perform_interpolated_push(regex, False)
+    vm.perform_interpolated_push(regex)
     regex = vm.stack.pop().stringify()
-    
-    # interpolate it
-    vm.perform_interpolated_push(repl)
-    repl = vm.stack.pop().stringify()
     
     options = spec._val['opts']
     re_obj = re.compile(regex, parse_re_opts(vm, options))
@@ -174,11 +170,16 @@ def do_subs_op(vm, name, index_expr, spec, invert):
             vm.set_variable(str(i+1), Value(ret.group(i+1)), 'scalar')
     
     if ((bool(ret) ^ invert) and ret.group(0) != ''):
+        # interpolate it
+        vm.perform_interpolated_push(repl)
+        repl = vm.stack.pop().stringify()
+    
         mod_string = None
+        num_repls = None
         if ('g' in options):
-            mod_string = re_obj.sub(repl, v.stringify(), 0)
+            mod_string, num_repls = re_obj.subn(repl, v.stringify(), 0)
         else:
-            mod_string = re_obj.sub(repl, v.stringify(), 1)
+            mod_string, num_repls = re_obj.subn(repl, v.stringify(), 1)
             
         if (index_expr == True):
             if cxt == 'list':
@@ -190,7 +191,7 @@ def do_subs_op(vm, name, index_expr, spec, invert):
         else:
             vm.set_variable(name, Value(mod_string), 'scalar')
             
-        vm.stack.push(Value(1))
+        vm.stack.push(Value(num_repls))
     else:
         vm.stack.push(Value(0))
     

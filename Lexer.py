@@ -295,7 +295,7 @@ class Lexer:
             if ((self.pos != 0 and self.peek(-1) == '$') 
                 or (self.pos != 0 and self.peek(-1) == '#' and self.peek(-2) == '$')
                 or (self.pos != 0 and self.peek(-1) == '@')):
-                if self.current_char == ' ':
+                if self.current_char and (self.peek(-1) != '@') == ' ':
                     self.advance()
                     return self.make_token(TokenType.ID, Value(' '))
                 
@@ -619,3 +619,10 @@ class Lexer:
             self.error()
 
         return self.make_token(TokenType.EOF, Value("EOF"))
+        
+    def dump_tokens(self):
+        tok = self.get_next_token()
+        while (tok.type != TokenType.EOF):
+            print tok.type + " ... " + str(tok.value)
+            tok = self.get_next_token()
+        

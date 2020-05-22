@@ -11,12 +11,13 @@ fp.close()
 
 # l = Lexer(code)
 l = Lexer(""" 
-$^ = "hello";
+$@ = "hello";
 print $@;
 #if ($@ eq "") { print "SDF"; }
 """)
 
-
+#l.dump_tokens()
+#exit(1);
 p = Parser(l)
 ast = p.program()
 v = VM()

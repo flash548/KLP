@@ -12,7 +12,7 @@ class Parser:
             TokenType.UNTIL, TokenType.WHILE ];
         self.last_label_name = None
         
-        # used by spaceship op to tell whether to set $_ or not
+        # used by filehandle op to tell whether to set $_ or not
         self.in_loop_expr = False
         
         # used by postfix incr/decr
@@ -799,9 +799,9 @@ class Parser:
                 # its a BAREWORD, interp as string
                 return ValueNode(str(name))
                 
-        elif (token.type == TokenType.SPACESHIP):
-            self.eat(TokenType.SPACESHIP)
-            return SpaceShipNode(token.value, self.in_loop_expr)
+        elif (token.type == TokenType.FILEHANDLE):
+            self.eat(TokenType.FILEHANDLE)
+            return FileHandleNode(token.value, self.in_loop_expr)
             
         elif (token.type == TokenType.BACKTICKS):
             self.eat(TokenType.BACKTICKS)

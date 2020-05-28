@@ -26,14 +26,14 @@ class RootNode(AST):
             i.emit(vm)
 
 
-class SpaceShipNode(AST):
+class FileHandleNode(AST):
 
     def __init__(self, val, in_loop):
         self._val = val
         self._in_loop = in_loop
         
     def emit(self, vm):
-        vm.append_instruction(Instruction("DO SPACESHIP", [ self._val, self._in_loop ]))
+        vm.append_instruction(Instruction("DO FILEHANDLE", [ self._val, self._in_loop ]))
         
 class BackTicksNode(AST):
 
@@ -166,6 +166,10 @@ class FuncCallNode(AST):
     def emit(self, vm):
         for i in self._args:
             i.emit(vm)
+        
+        # push the scope .. but VM will only preserve @_
+        # since Perl 1 doesn't really have scopes
+        vm.append_instruction(Instruction("PUSH SCOPE", []))
         vm.append_instruction(Instruction(
             "LIST ASSIGN", ['_', len(self._args) ]))
         vm.create_new_pgm_stack()
@@ -173,6 +177,7 @@ class FuncCallNode(AST):
         vm.save_pgm_stack(self._name);
         vm.restore_pgm_stack();
         vm.append_instruction(Instruction("CALLUSER", [self._name ]))
+        vm.append_instruction(Instruction("POP SCOPE", []))
         
 class MatchNode(AST):
 

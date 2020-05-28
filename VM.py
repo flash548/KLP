@@ -30,6 +30,7 @@ class VM:
         self.pc = 0
         self.current_scope = {}  # place where we store variables
         self.scope_stack = []
+        self.first_null_file_hdl_call = True
 
     def get_variable(self, name, type):
         if type == 'scalar':
@@ -43,25 +44,26 @@ class VM:
             pass
         else:
             raise Exception("unknown variable type in get_variable()")
-            
+
         if name in self.current_scope:
             return self.current_scope[name]
 
-        if len(self.scope_stack) > 0:
-            for scope in self.scope_stack:
-                if name in scope:
-                    return scope[name]
-        
+        # don't do scopes for Perl 1
+        # if len(self.scope_stack) > 0:
+#             for scope in self.scope_stack:
+#                 if name in scope:
+#                     return scope[name]
+
         # if we get here, autovivify in perl parlance...
         if type == 'scalar':
-            return Value(None)  
+            return Value(None)
         elif type == 'list':
             return Value([])
         elif type == 'hash':
             return Value({})
         elif type == 'raw':
             return Value(None)
-        
+
 
     def set_variable(self, name, val, type):
         if type == 'scalar':
@@ -79,12 +81,15 @@ class VM:
         if name in self.current_scope:
             self.current_scope[name] = val
         else:
-            if len(self.scope_stack) > 0:
-                for scp in self.scope_stack:
-                    if name in scp:
-                        scp[name] = val
-            else:
-                self.current_scope[name] = val
+            # don't do scopes for Perl 1
+
+#             if len(self.scope_stack) > 0:
+#                 for scp in self.scope_stack:
+#                     if name in scp:
+#                         scp[name] = val
+#             else:
+            # make the variable
+         	self.current_scope[name] = val
 
     def get_current_address(self):
         return len(self.pgm_stack)
@@ -104,7 +109,7 @@ class VM:
 
     def dump_pgm_stack(self, name=None):
         """ Dumps the current program stack to STDOUT """
-        
+
         if (name == None):
             print "PGM Stack:"
             for i in range(0, len(self.pgm_stack)):
@@ -116,46 +121,31 @@ class VM:
                     print str(i) + ": " + str(self.pgm_frames[name][i])
             else:
                 print "No program frame exists by that name: " + name
-                
+
         print ""
 
     def dump_stack(self):
         """ Dumps the data stack to STDOUT for debugging """
-        
+
         print "Stack Dump: (length: %i)" % len(self.stack)
         for i in range(len(self.stack)-1, -1, -1):
             print str(self.stack[i])
-            
+
         print ""
-            
+
     def dump_current_scope(self):
         """ Dumps the variables in the current scope to STDOUT """
-        
+
         print "Current Scope Dump:"
         for i in self.current_scope:
             print i + ": " + str(self.current_scope[i])
-            
-        print ""
-                
-    def run(self):
 
-        # try:
-        is_debug = True
+        print ""
+
+    def run(self):
         while self.step():
-            # r = raw_input()
-            # if (r == 'q'):
-                # is_debug = False
-                
-            # if is_debug:
-                # print "%s: %s\n" % (self.pc, self.pgm_stack[self.pc])
-                # print self.dump_stack()
-                # print self.dump_current_scope()
             pass
-        # except Exception as e:
-            # pass
-            # exc_type, exc_obj, exc_tb = sys.exc_info()
-            # fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-            # print(exc_type, fname, exc_tb.tb_lineno)
+
 
     def step(self):
         if self.pc < len(self.pgm_stack):
@@ -165,6 +155,7 @@ class VM:
             if len(self.pc_stack) != 0:
                 self.pgm_stack = self.pgm_stack_frames.pop()
                 self.pc = self.pc_stack.pop()
+
                 #self.current_scope = self.scope_stack.pop()
                 return True
 
@@ -172,117 +163,138 @@ class VM:
 
     def execute(self, instr):
         self.pc += 1 # incr to next instruction, unless it gets mod'd in here
-    
+
         if (instr.opcode == "POP"):
             self.stack.pop()
-            
+
         elif (instr.opcode == "LABEL"):
             pass
-            
+
         elif (instr.opcode == "BINOP"):
             self.perform_op(str(instr.args[0]))
-            
+
         elif (instr.opcode == "UNOP"):
             self.perform_unop(str(instr.args[0]))
-            
+
         elif (instr.opcode == "DO MATCH"):
             do_match_op(self, str(instr.args[0]), instr.args[1], instr.args[2], instr.args[3])
-            
+
         elif (instr.opcode == "DO TRANS"):
             do_trans_op(self, str(instr.args[0]), instr.args[1], instr.args[2], instr.args[3])
-            
+
         elif (instr.opcode == "DO SUBS"):
             do_subs_op(self, str(instr.args[0]), instr.args[1], instr.args[2], instr.args[3])
-            
+
         elif (instr.opcode == "PUSH CONST"):
             self.stack.push(instr.args[0])
-            
+
         elif (instr.opcode == "PUSH INTERP CONST"):
             self.perform_interpolated_push(instr.args[0])
-            
+
         elif (instr.opcode == "INDEX VAR"):
             self.perform_var_index(args[0])
-            
+
         elif (instr.opcode == "PUSH SCALAR VAR"):
             self.perform_push_var(str(instr.args[0]), instr.args[1], 'scalar')
-            
+
         elif (instr.opcode == "PUSH LIST VAR"):
             self.perform_push_var(str(instr.args[0]), instr.args[1], 'list')
-            
+
         elif (instr.opcode == "PUSH ANON LIST"):
             self.perform_push_anon_list(instr.args[0])
-            
+
         elif (instr.opcode == "GOTO END LOOP"):
             self.go_to_loop_label("END_LOOP", instr.args[0])
-            
+
         elif (instr.opcode == "GOTO CONTINUE LOOP"):
             self.go_to_loop_label("CONTINUE_LOOP", instr.args[0])
-            
+
         elif (instr.opcode == "GOTO REDO LOOP"):
             self.go_to_loop_label("CONTINUE_LOOP", instr.args[0])
-            
+
         elif (instr.opcode == "GOTO"):
             self.go_to_label(instr.args[0])
-            
+
+        # Brnach if TOS is not Zero (True)
         elif (instr.opcode == "BNZ"):
             if (self.stack.pop().boolify()):
+                self.stack.push(Value(1))
                 self.pc = int(instr.args[0])
-                
+            else:
+                self.stack.push(Value('')) # Perl 1 compatibility
+
+        # Branch if TOS is "Zero" (False)
         elif (instr.opcode == "BZ"):
             if (not self.stack.pop().boolify()):
+                self.stack.push(Value('')) # Perl 1 compatibility
                 self.pc = int(instr.args[0])
-                
+            else:
+                self.stack.push(Value(1))
+
         elif (instr.opcode == "JMP"):
             self.pc = int(instr.args[0])
-            
+
         elif (instr.opcode == "SCALAR ASSIGN"):
             self.perform_scalar_assign(instr.args[0], instr.args[1])
-            
+
         elif (instr.opcode == "PUSH LIST MAX INDEX"):
             self.perform_get_list_max_index(instr.args[0])
-            
+
         elif (instr.opcode == "STR CAT"):
             self.perform_string_cat(instr.args[0], instr.args[1])
-            
+
         elif (instr.opcode == "INCR SCALAR"):
             self.perform_incr_decr(instr.args[0], instr.args[1], True)
-            
+
         elif (instr.opcode == "DECR SCALAR"):
             self.perform_incr_decr(instr.args[0], instr.args[1], False)
-            
+
         elif (instr.opcode == "LIST ASSIGN"):
             self.perform_list_assign(instr.args[0], instr.args[1])
-            
+
         elif (instr.opcode == "CALLUSER"):
             self.perform_call_user_func(str(instr.args[0]))
-            
+
         elif (instr.opcode == "CALL"):
             self.perform_func_call(str(instr.args[0]), instr.args[1], instr.args[2])
-            
+
         elif (instr.opcode == "CALLUSER"):
             self.perform_user_func_call(str(instr.args[0]))
-            
+
         elif (instr.opcode == "MULTI ASSIGN"):
             self.perform_multi_assign(instr.args[0], instr.args[1])
-            
-        elif (instr.opcode == "DO SPACESHIP"):
-            self.perform_spaceship(instr.args[0], instr.args[1])
-            
+
+        elif (instr.opcode == "DO FILEHANDLE"):
+            self.perform_filehandle(instr.args[0], instr.args[1])
+
         elif (instr.opcode == "DO BACKTICKS"):
             self.perform_backticks(instr.args[0])
 
+        elif (instr.opcode == "PUSH SCOPE"):
+            # not really a scope, but Perl 1 apparently
+            # saves the state of @_ before going into
+            # a subroutine
+            temp_ary = self.get_variable("_", 'list')
+            self.scope_stack.append({ "@_" : temp_ary })
+
+        elif (instr.opcode == "POP SCOPE"):
+            # restore @_ to main 'scope'
+            if (len(self.scope_stack) > 0):
+                temp_scope = self.scope_stack.pop()
+                self.set_variable("_", temp_scope["@_"], 'list')
+
         else:
             raise Exception("Unknown Instruction: " + instr.opcode)
-     
+
     def go_to_label(self, label):
-    
+
         # search the full pgm stack (current one anyways)
         for i in range(0, len(self.pgm_stack)):
                 if self.pgm_stack[i].opcode == "LABEL" and self.pgm_stack[i].args[0] == label:
                     self.pc = i
                     return
-        
-        
+
+
     def go_to_loop_label(self, label, loop_name):
         if loop_name == None:
             for i in range(self.pc, len(self.pgm_stack)):
@@ -294,47 +306,115 @@ class VM:
             occurences = []
             if label == "CONTINUE_LOOP":
                 for i in range(self.pc, len(self.pgm_stack)):
-                    if (self.pgm_stack[i].opcode == "LABEL" 
+                    if (self.pgm_stack[i].opcode == "LABEL"
                             and self.pgm_stack[i].args[0] == "CONTINUE_LOOP"
                             and self.pgm_stack[i].args[2] == loop_name):
                         occurences.append(i)
             elif label == "REDO_LOOP":
                 for i in range(self.pc, len(self.pgm_stack)):
-                    if (self.pgm_stack[i].opcode == "LABEL" 
+                    if (self.pgm_stack[i].opcode == "LABEL"
                             and self.pgm_stack[i].args[0] == "CONTINUE_LOOP"
                             and self.pgm_stack[i].args[2] == loop_name):
                         occurences.append(self.pgm_stack[i].args[1])
             else:
                 for i in range(self.pc, len(self.pgm_stack)):
-                    if (self.pgm_stack[i].opcode == "LABEL" 
+                    if (self.pgm_stack[i].opcode == "LABEL"
                             and self.pgm_stack[i].args[0] == label
                             and self.pgm_stack[i].args[1] == loop_name):
                         occurences.append(i)
-                        
+
             if len(occurences) > 0:
                 self.pc = occurences[-1]
                 return
-                
+
         raise Exception("Could not find label: " + label)
-        
-    def perform_spaceship(self, val, in_loop):
-        v = self.get_variable(str(val), 'raw')
-        self.last_fh_read = val
-        l = None
-        try:
-            l = v._val.readline()
-        except:
-            pass
-            
-        # set the $_ if we're supposed to
-        if (in_loop):
-            self.set_variable('_', Value(l), 'scalar')
-            
-        if (l == ''):    
-            self.stack.push(Value(''))
-        else:
-            self.stack.push(Value(l))
-        
+
+    def perform_filehandle(self, val, in_loop):
+        v = None
+        null_fh = False
+        if str(val) != '' and str(val) != 'stdin':
+            v = self.get_variable(str(val), 'raw')
+
+        elif str(val) == '':
+            # TODO this needs cleaned up - its a mess
+            # null filehandle case...
+            # get input from @ARGV args - or possibly stdin
+            null_fh = True
+            argv = self.get_variable('ARGV', 'list')
+            if (self.first_null_file_hdl_call):
+                self.first_null_file_hdl_call = False
+                if len(argv._val) == 0:
+                    argv._val = [ Value('-') ]
+            # check if the hidden 'ARGV' bareword handle is set or
+            #  if not, then shift out an @ARGV element and set it to $ARGV
+            #  and open that file and set the FILEHANDLE to 'ARGV' bareword
+            argv_fh = self.get_variable('ARGV', 'raw')
+            if argv_fh._val == None:
+                argv_file = argv[0]
+                self.set_variable('ARGV', Value(argv._val[1:]), 'list')
+                if (os.path.exists(str(argv_file))):
+                    f = open(str(argv_file), 'r')
+                    self.set_variable('ARGV', Value(f), 'raw') # set the ARGV file handle
+                    self.set_variable('ARGV', argv_file, 'scalar')
+                    v = Value(f)
+                elif (str(argv_file) == '-'):
+                    self.set_variable('ARGV', self.get_variable('stdin', 'raw'), 'scalar')
+                    v = self.get_variable('stdin', 'raw')
+                    self.set_variable('ARGV', v, 'raw')
+                else:
+                    raise Exception("Cannot read from file " + str(argv_file))
+            else:
+                v = self.get_variable('ARGV', 'raw')
+
+        elif (str(val) == 'stdin'):
+            v = self.get_variable('stdin', 'raw')
+
+        while True:
+            self.last_fh_read = val # set this for the eof() function
+            l = None
+            try:
+                l = v._val.readline()
+            except Exception as e:
+                raise Exception('Error reading from file handle: ' + str(val))
+
+            # set the $_ if we're supposed to
+            if (in_loop):
+                self.set_variable('_', Value(l), 'scalar')
+
+            if (l == ''):
+                if (null_fh):
+                    # on a null file handle and reached EOF on an ARGV elements
+                    # attempt to bump to next file
+                    argv = self.get_variable('ARGV', 'list')
+                    if len(argv._val) > 0:
+                        # more @ARGV elements to process, so don't report '' just yet
+                        # we can shift to the next element
+                        argv_file = argv[0]
+                        self.set_variable('ARGV', Value(argv._val[1:]), 'list')
+                        if (os.path.exists(str(argv_file))):
+                            f = open(str(argv_file), 'r')
+                            self.set_variable('ARGV', Value(f), 'raw') # set the ARGV file handle
+                            self.set_variable('ARGV', argv_file, 'scalar')
+                            v = Value(f)
+                        elif (str(argv_file) == '-'):
+                            self.set_variable('ARGV', self.get_variable('stdin', 'raw'), 'scalar')
+                            v = self.get_variable('stdin', 'raw')
+                            self.set_variable('ARGV', v, 'raw')
+                        else:
+                            raise Exception("Cannot read from file " + str(argv_file))
+                    else:
+                        # on a null filehandle and no more ARGV to read
+                        self.stack.push(Value(''))
+                        break
+                else:
+                    # wasn't a null file handle, so report EOF
+                    self.stack.push(Value(''))
+                    break
+            else:
+                self.set_variable('.', self.get_variable(".", 'scalar')+Value(1), 'scalar')
+                self.stack.push(Value(l))
+                break
+
     def perform_backticks(self, cmdstr):
         self.perform_interpolated_push(cmdstr)
 
@@ -427,11 +507,11 @@ class VM:
             idx = self.stack.pop()
             if type(idx._val) is str:
                 v = self.get_variable(name, 'hash')
-                v = v[str(idx)] 
+                v = v[str(idx)]
                 self.stack.push(v.scalar_context())
             else:
                 v = self.get_variable(name, 'list')
-                v = v[int(idx)] 
+                v = v[int(idx)]
                 self.stack.push(v.scalar_context())
         else:
             if (context == 'list'):
@@ -441,21 +521,21 @@ class VM:
             else:
                 v = self.get_variable(name, context)
                 self.stack.push(v.scalar_context())
-       
+
     def perform_get_list_max_index(self, name):
         v = self.get_variable(name, 'list')
         self.stack.push(Value(len(v)-1))
-            
+
     def perform_interpolated_push(self, val):
         """ Interpolate a string before pushing it onto stack as a const """
-        
+
         string_const = str(val)
         vars = {}
-        
+
         # look for sigils and get varnames
         # varnames can be encased in {} as well
         # so lots of fun in here!
-        
+
         i = 0
         in_curly = False
         in_var = False
@@ -464,8 +544,8 @@ class VM:
         var_to_replace = ""
         sigil = None
         while i < len(string_const):
-            if (string_const[i] in ('$', '@') 
-                    and not escaped 
+            if (string_const[i] in ('$', '@')
+                    and not escaped
                     and not in_var
                     and string_const[-1] not in ('$', '@') ):
                 sigil = string_const[i]
@@ -485,7 +565,7 @@ class VM:
                 in_curly = False
             elif (string_const[i].isspace() and in_var and in_curly):
                 raise Exception("Invalid variable string: " + varname)
-            elif ((not string_const[i].isalnum() and string_const[i] != '_') and in_var):
+            elif ((not string_const[i].isalnum() and string_const[i] not in [ '_', '.' ]) and in_var):
                 vars[var_to_replace] = varname
                 varname = ""
                 var_to_replace = ""
@@ -493,34 +573,34 @@ class VM:
             elif (in_var):
                 var_to_replace += string_const[i]
                 varname += string_const[i]
-                
+
             i += 1
-    
+
         # if we get here and we're 'in_curly' = True then syntax errpr
         if in_curly:
             raise Exception("Invalid variable string in string: " + varname)
-        
+
         if in_var:
             vars[var_to_replace] = varname
-            
+
         # now replace all the vars with their looked up values
         #  these resolves will be in scalar context as a string
         for var in vars:
             sigil = var[0]
             var_kind = None
-            if var[0] == '\\': 
+            if var[0] == '\\':
                 continue
             if sigil == '$': var_kind = 'scalar'
             elif sigil == '@': var_kind = 'list'
             #elif sigil == '%': var_kind = 'hash'
-            
+
             v = self.get_variable(vars[var].replace('{', '').replace('}', ''), var_kind)
             string_const = re.sub("(?<!\\\\)\\"+var, str(v.scalar_context()), string_const)
-         
+
         string_const = string_const.replace('\\$', '$')
-        string_const = string_const.replace('\\@', '@')   
+        string_const = string_const.replace('\\@', '@')
         self.stack.push(Value(string_const))
-        
+
 
     def perform_call_user_func(self, name):
         if (name in self.pgm_frames):
@@ -534,17 +614,17 @@ class VM:
             #self.current_scope = {}
         else:
             raise Exception("Undefined sub: " + name)
-            
+
     def perform_string_cat(self, name, idx_expr):
         idx = None
         if idx_expr:
             idx = self.stack.pop()
-            
+
         incr_amt = self.stack.pop() # what were adding to the string
         lval = self.stack.pop() # what we're adding/subing to
         lval = lval.str_concat(incr_amt)
 
-        # now decide where to stuff it back to    
+        # now decide where to stuff it back to
         # see if its a list element or not
         if idx_expr:
             v = self.get_variable(name, 'list')
@@ -552,12 +632,12 @@ class VM:
             self.set_variable(name, v, 'list')
         else:
             self.set_variable(name, lval, 'scalar')
-    
+
         self.stack.push(lval)
-            
+
     def perform_incr_decr(self, name, idx_expr, incr):
         """ Performs the postfix incr/decr """
-        
+
         idx = None
         lval = None
         if idx_expr:
@@ -566,15 +646,15 @@ class VM:
             lval = lval[idx.numerify()]
         else:
             lval = self.get_variable(name, 'scalar')
-            
+
         incr_amt = self.stack.pop() # incr/decr amnt
         #lval = self.stack.pop() # what we're adding/subing to
         if incr == True:
             lval += incr_amt
         else:
             lval -= incr_amt
-            
-        # now decide where to stuff it back to    
+
+        # now decide where to stuff it back to
         # see if its a list element or not
         if idx_expr:
             v = self.get_variable(name, 'list')
@@ -582,16 +662,16 @@ class VM:
             self.set_variable(name, v, 'list')
         else:
             self.set_variable(name, lval, 'scalar')
-            
+
         #self.stack.push(lval)
-                        
+
 
     def perform_func_call(self, name, fh, argslen):
         args = []
         for i in range(0, argslen):
-            args.append(self.stack.pop())            
-        
-        if (name == "print"): 
+            args.append(self.stack.pop())
+
+        if (name == "print"):
             # print may or may not have a FH with it
             BuiltIns.do_print(self, fh, args)
         elif (name == 'die'):
@@ -680,7 +760,7 @@ class VM:
             BuiltIns.do_chmod(self, args)
         else:
             raise Exception("Undefined built-in: " + name)
-            
+
     def perform_user_func_call(self, name):
         if (name in self.pgm_frames):
             # store away current pgm stack and its pc
@@ -693,7 +773,7 @@ class VM:
         else:
             raise Exception("Unknown user function: " + name)
 
-    def perform_scalar_assign(self, name, index_expr):  
+    def perform_scalar_assign(self, name, index_expr):
         if (index_expr == True):
             val = self.stack.pop()
             idx = self.stack.pop()
@@ -705,14 +785,14 @@ class VM:
                 v = self.get_variable(name, 'list')
                 v[idx.numerify()] = val.scalar_context()
                 self.set_variable(name, v, 'list')
-         
+
             # push the assigned val back to the stack
             self.stack.push(v)
         else:
             v = self.get_variable(name, 'scalar')
             v = self.stack.pop().scalar_context()
             self.set_variable(name, v, 'scalar')
-            
+
             # push the assigned val back to the stack
             self.stack.push(v)
 
@@ -722,11 +802,11 @@ class VM:
             arry.push(self.stack.pop())
         arry.reverse()
         self.stack.push(arry)
-        
+
     def perform_multi_assign(self, var_list, elem_count):
         vals = []
         if elem_count == 1 and self.stack[-1].type == 'List':
-            # we'll need to check if the top of stack 
+            # we'll need to check if the top of stack
             # is a list, if so we'll need to break it apart
             # and use its length for 'elem_count'
             elem_count = len(self.stack[-1]._val)
@@ -741,14 +821,14 @@ class VM:
                 if var_list[var][0] == '$':
                     new_val = vals[var] if (type(vals[var]) is Value) else Value(vals[var])
                     self.set_variable(var_list[var][1:], new_val, 'scalar')
-                    if var == 0: 
+                    if var == 0:
                         first_val = self.get_variable(var_list[var][1:], 'scalar')
                     elem_count -= 1
                 elif var_list[var][0] == '@':
                     # if we hit the '@' list context, take rest of rval
                     new_val = vals[var:] if (type(vals[var:]) is Value) else Value(vals[var:])
                     self.set_variable(var_list[var][1:], new_val, 'list')
-                    if var == 0: 
+                    if var == 0:
                         first_val = self.get_variable(var_list[var][1:], 'list')
                     elem_count = 0  # any more assignments to var_list will be undefs
             else:
@@ -756,10 +836,10 @@ class VM:
                     self.set_variable(var_list[var][1:], Value(None), 'scalar')
                 elif var_list[var][0] == '@':
                     self.set_variable(var_list[var][1:], Value(None), 'list')
-        
-        # push the first of the assigned vals back on stack 
-        self.stack.push(first_val)        
-                
+
+        # push the first of the assigned vals back on stack
+        self.stack.push(first_val)
+
     def perform_list_assign(self, name, length):
         arry = Value([])
         for i in range(0, length):
@@ -767,7 +847,7 @@ class VM:
             if stack_val.type == 'List':
                 temp = []
                 for j in stack_val._val:
-                    temp.append(Value(j))  
+                    temp.append(Value(j))
                 temp.reverse()
                 for i in temp:
                     arry.push(i)
@@ -776,7 +856,8 @@ class VM:
 
         arry.reverse()
         self.set_variable(name, arry, 'list')
-        
-    def die(self):
-        sys.exit(1)
 
+    def die(self):
+        # TODO: this needs better handling
+        raise Exception()
+        #sys.exit(1)

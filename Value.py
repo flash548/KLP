@@ -65,6 +65,8 @@ class Value(object):
             return self._val
 
     def stringify(self):
+        """ Attempts to coerce 'Value' into string form"""
+        
         if (self.type == "Undef"):
             return ""
         if (self.type == "Scalar"):

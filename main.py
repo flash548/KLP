@@ -2,29 +2,42 @@ from Lexer import *
 from Parser import *
 from AST import *
 from VM import *
+import sys
+import fileinput
 
-print "\n------- NEW RUN -------\n"
+l = None
+v = VM()
 
-fp = open('t/op.eval')
-code = fp.read()
-fp.close()
+v.set_variable('0', Value(__file__), 'scalar')
 
-# l = Lexer(code)
-l = Lexer(""" 
-$@ = "hello";
-print $@;
-#if ($@ eq "") { print "SDF"; }
-""")
+if len(sys.argv[2:]) > 0:
+    # input args specified, save them to @ARGV
+    v.set_variable('ARGV', Value(sys.argv[2:]), 'list')
+else:
+    # no input args specified
+    v.set_variable('ARGV', Value([]), 'list')
 
-#l.dump_tokens()
-#exit(1);
+v.set_variable('stdin', Value(sys.stdin), 'raw')
+
+
+if len(sys.argv) >= 2:
+    fp = open(sys.argv[1])
+    code = fp.read()
+    fp.close()
+    l = Lexer(code)
+else:
+    code = sys.stdin.read()
+    l = Lexer(code)
+
 p = Parser(l)
 ast = p.program()
-v = VM()
+
 ast.emit(v)
 v.dump_pgm_stack()
-v.run()
+try:
+    v.run()
+except:
+    pass
 
-print "\n\n"
 v.dump_current_scope()
-v.dump_stack()
+#v.dump_stack()

@@ -104,8 +104,8 @@ class TokenType:
     FILEHANDLE = 'FILEHANDLE'
     TERNARY = 'TERNARY'
     REPEAT = 'REPEAT'
-    
-    BUILTINS = [ 
+
+    BUILTINS = [
         'print',
         'length',
         'join',
@@ -149,5 +149,6 @@ class TokenType:
         'unlink',
         'rename',
         'link',
-        
+        'exit',
+
     ]

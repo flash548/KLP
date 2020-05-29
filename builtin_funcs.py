@@ -37,6 +37,8 @@ class BuiltIns():
             else:
                 if str(fh) == 'stdout':
                     sys.stdout.write(vm.get_variable('_', 'scalar').stringify())
+                elif str(fh) == 'stderr':
+                    sys.stderr.write(vm.get_variable('_', 'scalar').stringify())
                 else:
                     vm.get_variable(fh, 'raw')._val.write(vm.get_variable('_', 'scalar').stringify())
 
@@ -62,7 +64,7 @@ class BuiltIns():
     @staticmethod
     def do_exit(vm, argv):
         code = 0
-        if len(argv > 0):
+        if len(argv) > 0:
             code = argv[-1].numerify()
         sys.exit(code)
 
@@ -177,7 +179,7 @@ class BuiltIns():
         try:
             l = Lexer(str(argv[0]))
             p = Parser(l)
-            ast = p.program()
+            ast = p.parse()
             v = VM()
 
             # merge in existing scope, stack, subs, etc
@@ -256,7 +258,7 @@ class BuiltIns():
             handle = str(argv[0])
             fp = vm.get_variable(handle, 'raw')
         else:
-            fp = vm.get_variable(str(vm.last_fh_read), 'raw')
+            fp = vm.last_fh_read
 
         if (fp._val.closed):
             vm.stack.push(Value(1))
@@ -390,7 +392,7 @@ class BuiltIns():
             handle = str(argv[0])
             fp = vm.get_variable(handle, 'raw')
         else:
-            fp = vm.get_variable(str(vm.last_fh_read), 'raw')
+            fp = vm.last_fh_read
 
         pos = fp._val.tell()
         vm.stack.push(Value(pos))

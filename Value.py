@@ -66,7 +66,7 @@ class Value(object):
 
     def stringify(self):
         """ Attempts to coerce 'Value' into string form"""
-        
+
         if (self.type == "Undef"):
             return ""
         if (self.type == "Scalar"):
@@ -150,7 +150,7 @@ class Value(object):
             return Value(s)
         else:
             return Value(None)
-            
+
     def _each(self):
         if (self.type == 'Hash'):
             try:
@@ -168,21 +168,21 @@ class Value(object):
 
     def __setitem__(self, key, v):
         if (self.type == "List"):
-            if key >= len(self._val):                
+            if key >= len(self._val):
                 end = key-len(self._val);
                 for i in range(0, end+1):
                     self._val.append(Value(None))
-       
+
             self._val[key] = v
         elif (self.type == "Hash"):
             self._val[key] = v
         elif (self.type == "Scalar"):
-            if key >= len(self._val):                
+            if key >= len(self._val):
                 end = key-len(self._val);
                 for i in range(0, end+1):
                     self._val.append(Value(None))
-            self._val[key] = v		
-            
+            self._val[key] = v
+
     def __getitem__(self, key):
         if (self.type == "List"):
             if type(key) is slice:
@@ -194,7 +194,10 @@ class Value(object):
                     return self._val[key]
         elif (self.type == "Hash"):
             if key in self._val:
-                return self._val[key]
+                if type(self._val[key]) is Value:
+                    return self._val[key]
+                else:
+                    return Value(self._val[key])
             else:
                 return Value(None)
         else:
@@ -237,7 +240,7 @@ class Value(object):
 
     def __abs__(self):
         return Value(abs(self.numerify()))
-        
+
     def __neg__(self):
         if (self.type == "List"):
             return -(self._val[-1].numerify())
@@ -291,9 +294,9 @@ class Value(object):
     def prepend_list(self, other):
         if other.type == 'Scalar':
             return Value([other._val] + self._val)
-            
+
         return Value(other._val + self._val)
-    
+
     def list_concat(self, other):
         return Value(self._val + other._val)
 
@@ -302,7 +305,7 @@ class Value(object):
 
     def str_eq(self, other):
         return Value(self.stringify() == other.stringify())
-    
+
     def str_ne(self, other):
         return Value(self.stringify() != other.stringify())
 
@@ -317,24 +320,24 @@ class Value(object):
 
     def str_ge(self, other):
         return Value((self.stringify()) >= (other.stringify()))
-        
+
     def __and__(self, other):
         return Value(self.numerify() & other.numerify())
-        
+
     def __or__(self, other):
         return Value(self.numerify() | other.numerify())
-        
+
     def __xor__(self, other):
         return Value(self.numerify() ^ other.numerify())
-        
+
     def push(self, v):
         if (self.type == "List"):
             self._val.append(v)
-        
+
     def reverse(self):
         if (self.type == "List"):
             self._val.reverse()
-        
+
     def shift(self):
         if (self.type == "List"):
             val = self._val[0]
@@ -342,5 +345,3 @@ class Value(object):
             return val
         else:
             raise Exception("shift must operate on array!")
-            
-            

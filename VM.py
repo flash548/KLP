@@ -294,6 +294,8 @@ class VM:
                     self.pc = i
                     return
 
+        print ("Can't find label " + label)
+
 
     def go_to_loop_label(self, label, loop_name):
         if loop_name == None:
@@ -370,7 +372,7 @@ class VM:
             v = self.get_variable('stdin', 'raw')
 
         while True:
-            self.last_fh_read = val # set this for the eof() function
+            self.last_fh_read = v # set this for the eof() function
             l = None
             try:
                 l = v._val.readline()
@@ -676,6 +678,8 @@ class VM:
             BuiltIns.do_print(self, fh, args)
         elif (name == 'die'):
             BuiltIns.do_die(self, args)
+        elif (name == 'exit'):
+            BuiltIns.do_exit(self, args)
         elif (name == 'length'):
             BuiltIns.do_length(self, args)
         elif (name == 'join'):

@@ -13,7 +13,7 @@ class Lexer:
         self.prev_scalar = False
         self.line_number = 0
         self.anchor_val = 0
-        self.allowable_var_chars = ['.', '_', '@', '#', '!', '^', '%', '\\', '/', '*', ',' ]
+        self.allowable_var_chars = ['$', '+', '.', '_', '@', '#', '!', '^', '%', '\\', '/', '*', ',' ]
 
     def error(self):
         raise Exception("Invalid character. Line number: " + str(self.line_number))
@@ -538,12 +538,12 @@ class Lexer:
                     self.advance()
                     self.advance()
                     return self.make_token(TokenType.LSHIFT, Value("<<"))
-                elif (self.peek() in self.allowable_var_chars):
+                elif (self.peek() in self.allowable_var_chars or self.peek().isalnum()):
                     # check for filehandle op
                     self.advance()
                     bareword = self.current_char
                     self.advance()
-                    while (self.current_char in self.allowable_var_chars):
+                    while (self.current_char in self.allowable_var_chars or self.current_char.isalnum()):
                         bareword += self.current_char
                         self.advance()
                     if self.current_char == '>':

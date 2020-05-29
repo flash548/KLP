@@ -218,9 +218,11 @@ def do_match_op(vm, name, index_expr, spec, invert):
     ret = re.search(regex, v.stringify(), parse_re_opts(vm, options))
     for i in range(10):
         vm.set_variable(str(i+1), Value(None), 'scalar')
+    vm.set_variable('+', Value(None), 'scalar')
     if ret and ret.lastindex:
         for i in range(0, ret.lastindex):
             vm.set_variable(str(i+1), Value(ret.group(i+1)), 'scalar')
+            vm.set_variable('+', Value(ret.group(i+1)), 'scalar')
 
     if (bool(ret) ^ invert):
         vm.stack.push(Value(1))

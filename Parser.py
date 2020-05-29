@@ -11,23 +11,23 @@ class Parser:
         self.statement_modifier_tokens = [ TokenType.IF, TokenType.UNLESS,
             TokenType.UNTIL, TokenType.WHILE ];
         self.last_label_name = None
-        
+
         # used by filehandle op to tell whether to set $_ or not
         self.in_loop_expr = False
-        
+
         # used by postfix incr/decr
         self.incr_decr_op = None
-        
+
         #
         self.restrict_string_interpolation = False
-        
+
 
     def error(self):
         raise Exception("Invalid syntax on line: " + str(self.lex.line_number))
-      
-   
+
+
     def is_an_operator(self, tok):
-        return tok in [ 
+        return tok in [
                     TokenType.STR_CONCAT,
                     TokenType.LOGAND,
                     TokenType.LOGOR,
@@ -59,7 +59,7 @@ class Parser:
             self.prev_token = self.current_token
             self.current_token = self.lex.get_next_token()
             # eat comments that in the midst of statements that straddle a new line
-            while (self.current_token.type == TokenType.COMMENT 
+            while (self.current_token.type == TokenType.COMMENT
                     and self.current_token.type != TokenType.EOF):
                 self.current_token = self.lex.get_next_token()
         else:
@@ -69,21 +69,21 @@ class Parser:
     def eat_end_of_statement(self):
         if self.current_token.type == TokenType.SEMICOLON:
             self.eat(TokenType.SEMICOLON)
-    
+
     # program <- statement_list EOF
-    def program(self):
+    def parse(self):
         return RootNode(self.statement_list())
 
     # statement_list <- statement+
     def statement_list(self):
         nodes = []
 
-        node = self.statement()          
+        node = self.statement()
         nodes.append(node)
 
         while self.current_token.type != TokenType.EOF:
             self.eat_end_of_statement()
-            
+
             # incase this statement was last in the file... check agian
             if (self.current_token.type == TokenType.EOF): break
             nodes.append(self.statement())
@@ -98,31 +98,31 @@ class Parser:
         if self.current_token.type == TokenType.COMMENT:
             self.eat(TokenType.COMMENT)
             return AST()
-            
+
         elif self.current_token.type in [TokenType.SCALAR, TokenType.LIST, TokenType.LPAREN]:
             return self.assignment()
-            
+
         elif self.current_token.type == TokenType.FUNCTION_DECLARE:
             return self.function_declare_statement()
-            
+
         elif self.current_token.type in [TokenType.IF, TokenType.UNLESS]:
             return self.if_statement()
-            
+
         elif self.current_token.type in [TokenType.WHILE, TokenType.UNTIL]:
             return self.while_statement()
-            
+
         elif self.current_token.type == TokenType.FOR:
             return self.for_statement()
-            
+
         elif self.current_token.type == TokenType.LCURLY:
-            self.eat(TokenType.LCURLY)            
+            self.eat(TokenType.LCURLY)
             stmts = []
             while (self.current_token.type != TokenType.RCURLY):
                 stmts.append(self.statement())
                 self.eat_end_of_statement()
             self.eat(TokenType.RCURLY)
             return RootNode(stmts)
-            
+
         elif self.current_token.type == TokenType.LABEL:
             name = str(self.current_token.value)
             self.eat(TokenType.LABEL)
@@ -132,7 +132,7 @@ class Parser:
                 return AST()
             # generic label statement
             return LabelNode(name)
-            
+
         elif self.current_token.type == TokenType.LAST:
             self.eat(TokenType.LAST)
             label = None
@@ -140,7 +140,7 @@ class Parser:
                 label = str(self.current_token.value)
                 self.eat(TokenType.ID)
             return self.check_for_conditional(LastNode(label))
-            
+
         elif self.current_token.type == TokenType.NEXT:
             self.eat(TokenType.NEXT)
             label = None
@@ -148,7 +148,7 @@ class Parser:
                 label = str(self.current_token.value)
                 self.eat(TokenType.ID)
             return self.check_for_conditional(NextNode(label))
-            
+
         elif self.current_token.type == TokenType.REDO:
             self.eat(TokenType.REDO)
             label = None
@@ -156,7 +156,7 @@ class Parser:
                 label = str(self.current_token.value)
                 self.eat(TokenType.ID)
             return self.check_for_conditional(RedoNode(label))
-        
+
         elif (self.current_token.type == TokenType.GOTO):
             self.eat(TokenType.GOTO)
             label = None
@@ -164,13 +164,13 @@ class Parser:
                 label = str(self.current_token.value)
                 self.eat(TokenType.ID)
             return self.check_for_conditional(GotoNode(label))
-            
+
         else:
             return self.check_for_conditional(self.expression())
 
         raise Exception("Invalid statement, line number: " +
-                        str(self.lex.line_number))                            
-    
+                        str(self.lex.line_number))
+
     def check_for_conditional(self, node):
         """ Checks for a statement modifier (if, unless, while, until)... """
         if (self.current_token.type == TokenType.IF):
@@ -191,11 +191,11 @@ class Parser:
             return WhileNode(expr, [ node ], [], True, self.last_label_name)
         else:
             return node
-    
+
     def assignment(self):
-    
+
         # look ahead to make sure this is an assignment statement
-        self.lex.anchor() # insurance policy 
+        self.lex.anchor() # insurance policy
         isAssign = False
         found_lparen = False
         found_lparen_cnt = 0
@@ -217,22 +217,22 @@ class Parser:
                 break
             self.prev_token = tok
             tok = self.lex.get_next_token()
-        
+
         self.lex.rewind()
         if not isAssign:
             # go back and treat the statement as expression
             return self.check_for_conditional(self.expression())
-    
+
         # multiple assignments, in python parlance 'unpacking' an rvalue
         # in list context.  This is kinda hacky, but here we gotta discern
         # a mult assignment from a regular ole expression encased in parens
         # so we gotta look for an assignment op ahead of time
         if ((found_lparen or found_comma)):
             ender = TokenType.ASSIGN
-            if (found_lparen): 
+            if (found_lparen):
                 self.eat(TokenType.LPAREN)
                 ender = TokenType.RPAREN
-            
+
             # build list of varnames we'll unpack to
             vars = []
             while (self.current_token.type != ender):
@@ -246,19 +246,19 @@ class Parser:
                     self.eat(TokenType.ID)
                 else:
                     raise Exception("Error parsing unpack assignments")
-                
+
                 if self.current_token.type == TokenType.COMMA:
                     self.eat(TokenType.COMMA)
-            
+
             if (ender == TokenType.RPAREN): self.eat(TokenType.RPAREN)
             self.eat(TokenType.ASSIGN)
             rval = self.consume_list()
             return UnpackAssignNode(vars, rval)
-            
-        
+
+
         # wasn't a multi assignment, treat as expresion
         return self.check_for_conditional(self.expression())
-        
+
     def if_statement(self):
         if (self.current_token.type == TokenType.UNLESS):
             self.eat(TokenType.UNLESS)
@@ -278,7 +278,7 @@ class Parser:
             if_clause.append(self.statement())
             self.eat_end_of_statement()
         self.eat(TokenType.RCURLY)
-        
+
         if (self.current_token.type == TokenType.ELSIF):
             while (self.current_token.type == TokenType.ELSIF):
                 self.eat(TokenType.ELSIF)
@@ -292,7 +292,7 @@ class Parser:
                     self.eat_end_of_statement()
                 else_if_clauses.append(clauses)
                 self.eat(TokenType.RCURLY)
-        
+
         if (self.current_token.type == TokenType.ELSE):
             self.eat(TokenType.ELSE)
             self.eat(TokenType.LCURLY)
@@ -337,11 +337,11 @@ class Parser:
             self.eat(TokenType.WHILE)
             invert_logic = False
         self.eat(TokenType.LPAREN)
-        
+
         self.in_loop_expr = True
         expr = self.statement()
         self.in_loop_expr = False
-        
+
         self.eat(TokenType.RPAREN)
         self.eat(TokenType.LCURLY)
         while_clause = []
@@ -366,7 +366,7 @@ class Parser:
         name = str(self.current_token.value)
         if (name not in AST.func_table):
             AST.func_table[name] = None
-        
+
         self.eat(TokenType.ID)
         self.eat(TokenType.LCURLY)
         func_body = []
@@ -377,7 +377,7 @@ class Parser:
         root = RootNode(func_body)
         AST.func_table[name] = root
         return AST()
-    
+
     def do_statement(self):
         self.eat(TokenType.LCURLY)
         do_body = []
@@ -397,13 +397,13 @@ class Parser:
             return DoWhileNode(do_body, expr)
         else:
             return DoStatementNode(do_body)
-        
+
     def function_call(self):
         name = str(self.current_token.value)
         self.eat(TokenType.ID)
         args = self.consume_list()
         return FuncCallNode(name, args)
-       
+
     def expression(self):
         result = self.term()
         while self.current_token.type in (
@@ -421,7 +421,7 @@ class Parser:
                 result = LogicalOpNode(token.value, result, self.term())
             else:
                 result = BinOpNode(result, token.value, self.term())
-                    
+
         return result
 
     def term(self):
@@ -458,12 +458,12 @@ class Parser:
             else:
                 self.eat(token.type)
             result = BinOpNode(result, token.value, self.factor())
-            
+
         return result
 
     def factor(self):
         token = self.current_token
-            
+
         # '$' sigil -> but its tricky bc it could be assigning
         # to a list or hash or scalar!!
         if (token.type == TokenType.SCALAR):
@@ -472,7 +472,7 @@ class Parser:
             if self.current_token.type == TokenType.LCURLY:
                 encased_curly = True
                 self.eat(TokenType.LCURLY)
-                
+
             name = str(self.current_token.value) # the actual var's name
             self.eat(TokenType.ID)
             index_expr = None
@@ -481,29 +481,29 @@ class Parser:
                 self.eat(TokenType.LBRACKET)
                 index_expr = self.expression()
                 self.eat(TokenType.RBRACKET)
-                
+
             if (self.current_token.type == TokenType.LCURLY):
                 # hash index expr
                 self.eat(TokenType.LCURLY)
                 index_expr = self.expression()
                 self.eat(TokenType.RCURLY)
-                
+
             if encased_curly:
                 # has to have a RCURLY if we did ${a} syntax
-                if self.current_token.type != TokenType.RCURLY:  
+                if self.current_token.type != TokenType.RCURLY:
                     raise Exception("Parse Error: expected closing RCURLY on var!")
                 self.eat(TokenType.RCURLY)
-                
+
             if (self.current_token.type == TokenType.ASSIGN):
                 self.eat(TokenType.ASSIGN)
-                
+
                 if (self.current_token.type == TokenType.LPAREN):
                     # array element assignment (or hash element)
                     return ScalarAssignNode(name, self.consume_list(), index_expr)
                 else:
                     # regular scalar variable assignment
                     return ScalarAssignNode(name, self.expression(), index_expr)
-            
+
             elif (self.current_token.type in [ TokenType.MATCH, TokenType.NOT_MATCH]):
                 invert = False
                 if self.current_token.type == TokenType.MATCH:
@@ -511,7 +511,7 @@ class Parser:
                 else:
                     self.eat(TokenType.NOT_MATCH)
                     invert = True
-                    
+
                 if self.current_token.type == TokenType.MATCH_SPEC:
                     spec = self.current_token.value
                     self.eat(TokenType.MATCH_SPEC)
@@ -526,35 +526,35 @@ class Parser:
                     return SubsNode(name, index_expr, spec, invert)
                 else:
                     raise Exception ("Parser Error in / / expression!")
-            
+
             elif (self.current_token.type == TokenType.INCR):
                 self.eat(TokenType.INCR)
                 return ScalarIncrDecrNode(name, index_expr, self.expression(), '+=')
-                
+
             elif (self.current_token.type == TokenType.DECR):
                 self.eat(TokenType.DECR)
                 return ScalarIncrDecrNode(name, index_expr, self.expression(), '-=')
-                
+
             elif (self.current_token.type == TokenType.REPEAT_INCR):
                 self.eat(TokenType.REPEAT_INCR)
                 return ScalarIncrDecrNode(name, index_expr, self.expression(), 'x=')
-                
+
             elif (self.current_token.type == TokenType.MUL_INCR):
                 self.eat(TokenType.MUL_INCR)
                 return ScalarIncrDecrNode(name, index_expr, self.expression(), '*=')
-                
+
             elif (self.current_token.type == TokenType.DIV_INCR):
                 self.eat(TokenType.DIV_INCR)
                 return ScalarIncrDecrNode(name, index_expr, self.expression(), '/=')
-                
+
             elif (self.current_token.type == TokenType.XOR_INCR):
                 self.eat(TokenType.XOR_INCR)
                 return ScalarIncrDecrNode(name, index_expr, self.expression(), '^=')
-                
+
             elif (self.current_token.type == TokenType.STR_INCR):
                 self.eat(TokenType.STR_INCR)
                 return ScalarIncrDecrNode(name, index_expr, self.expression(), '.=')
-                
+
             elif (self.current_token.type == TokenType.PLUSPLUS):
                 self.eat(TokenType.PLUSPLUS)
                 if (self.is_an_operator(self.current_token.type)):
@@ -563,7 +563,7 @@ class Parser:
                     return ScalarIncrDecrNode(name, index_expr, BinOpNode(ScalarVarNode(name, index_expr), op.value, self.factor()), 'post++')
                 else:
                     return ScalarIncrDecrNode(name, index_expr, None, 'post++')
-                    
+
             elif (self.current_token.type == TokenType.MINUSMINUS):
                 self.eat(TokenType.MINUSMINUS)
                 if (self.is_an_operator(self.current_token.type)):
@@ -572,45 +572,45 @@ class Parser:
                     return ScalarIncrDecrNode(name, index_expr, BinOpNode(ScalarVarNode(name, index_expr), op.value, self.factor()), 'post--')
                 else:
                     return ScalarIncrDecrNode(name, index_expr, None, 'post--')
-                
+
             else:
                 return ScalarVarNode(name, index_expr)
-        
+
         # handle a Match spec by itself - on the $_ var
         elif (token.type == TokenType.MATCH_SPEC):
             spec = self.current_token.value
             self.eat(TokenType.MATCH_SPEC)
             return MatchNode(None, None, spec, False)
-        
-        # handle a Transliteration spec by itself - on the $_ var        
+
+        # handle a Transliteration spec by itself - on the $_ var
         elif (token.type == TokenType.TRANS_SPEC):
             spec = self.current_token.value
             self.eat(TokenType.TRANS_SPEC)
             return TransNode(None, None, spec, False)
-            
-        # handle a Substitution spec by itself - on the $_ var        
+
+        # handle a Substitution spec by itself - on the $_ var
         elif (token.type == TokenType.SUBS_SPEC):
             spec = self.current_token.value
             self.eat(TokenType.SUBS_SPEC)
             return SubsNode(None, None, spec, False)
-            
+
         elif (self.current_token.type == TokenType.TERNARY):
             self.eat(TokenType.TERNARY)
             true_expr = self.expression()
             self.eat(TokenType.COLON)
             false_expr = self.expression()
             return TernaryNode(true_expr, false_expr)
-        
+
         # '@' sigil -> interprets rvalue expr in list context
         elif (token.type == TokenType.LIST):
             self.eat(TokenType.LIST)
             name = str(self.current_token.value)
             self.eat(TokenType.ID)
             if (self.current_token.type == TokenType.ASSIGN):
-                self.eat(TokenType.ASSIGN)                
+                self.eat(TokenType.ASSIGN)
                 return ListAssignNode(name, self.consume_list())
             else:
-                return ListVarNode(name)  
+                return ListVarNode(name)
 
         # '%' sigil
         elif (token.type == TokenType.HASH):
@@ -618,7 +618,7 @@ class Parser:
             name = str(self.current_token.value)
             self.eat(TokenType.ID)
             return HashVarNode(name)
-                
+
         # '$#" 'twigil' (hat tip to p6)
         elif (token.type == TokenType.LIST_MAX_INDEX):
             self.eat(TokenType.LIST_MAX_INDEX)
@@ -627,15 +627,15 @@ class Parser:
                 name = str(self.current_token.value)
                 self.eat(TokenType.ID)
             return ListMaxIndexNode(name)
-            
+
         elif (self.restrict_string_interpolation):
             return None
-                
+
         elif (token.type == TokenType.LBRACKET):
             self.eat(TokenType.LBRACKET)
             anon_list = self.consume_list(TokenType.RBRACKET)
             return AnonListNode(anon_list)
-            
+
         elif (token.type == TokenType.DO):
             self.eat(TokenType.DO)
             if (self.current_token.type == TokenType.ID):
@@ -644,19 +644,19 @@ class Parser:
             else:
                 # a DO block
                 return self.do_statement()
-                
+
         elif (token.type == TokenType.PLUS):
             self.eat(TokenType.PLUS)
             return UnOpNode(Value('+'), self.factor())
-            
+
         elif (token.type == TokenType.MINUS):
             self.eat(TokenType.MINUS)
             return UnOpNode(Value('-'), self.factor())
-            
+
         elif (token.type == TokenType.NOT):
             self.eat(TokenType.NOT)
             return UnOpNode(Value('!'), self.factor())
-            
+
         elif (token.type == TokenType.PLUSPLUS):
             # prefix incr
             self.eat(TokenType.PLUSPLUS)
@@ -665,7 +665,7 @@ class Parser:
             if not type(expr) is ScalarVarNode:
                 raise Exception("Parse error: Prefix ++ expects variable lvalue. Line " + str(self.lex.line_number))
             return ScalarIncrDecrNode(None, expr, None, '++')
-            
+
         elif (token.type == TokenType.MINUSMINUS):
             # prefix decr
             self.eat(TokenType.MINUSMINUS)
@@ -674,7 +674,7 @@ class Parser:
             if not type(expr) is ScalarVarNode:
                 raise Exception("Parse error: Prefix -- expects variable lvalue. Line " + str(self.lex.line_number))
             return ScalarIncrDecrNode(None, expr, None, '--')
-            
+
         elif (token.type == TokenType.ID):
             name = token.value
             self.eat(TokenType.ID)
@@ -688,14 +688,14 @@ class Parser:
                     self.eat(TokenType.ID)
                     args = self.consume_list()
                     return BuiltInFunctionNode(name, fh, args)
-                 
+
                 # push is special since its destructive, don't eval the array arg
                 elif (str(name) == 'push'):
                     eat_paren = False
                     if (self.current_token.type == TokenType.LPAREN):
                         self.eat(TokenType.LPAREN)
                         eat_paren = True
-                        
+
                     # '@' is optional
                     if (self.current_token.type == TokenType.LIST):
                         self.eat(TokenType.LIST)
@@ -705,19 +705,19 @@ class Parser:
                         self.eat(TokenType.COMMA)
                     else:
                         return BuiltInFunctionNode(name, None, [ValueNode(var_name), ValueNode(Value(None))])
-                    
+
                     args = self.consume_list()
                     if (eat_paren):
                         self.eat(TokenType.RPAREN)
                     return BuiltInFunctionNode(name, None, [ValueNode(var_name)] + args)
-                    
+
                 # split is special since its first arg is a match_spec
                 elif (str(name) == 'split'):
                     eat_paren = False
                     if (self.current_token.type == TokenType.LPAREN):
                         self.eat(TokenType.LPAREN)
                         eat_paren = True
-                    
+
                     m_spec = None
                     var_expr = [ValueNode(Value(None))]
                     if (self.current_token.type == TokenType.MATCH_SPEC):
@@ -734,7 +734,7 @@ class Parser:
                         if (eat_paren):
                             self.eat(TokenType.RPAREN)
                         return BuiltInFunctionNode(name, None, args)
-                 
+
                 # chop is special since its destructive, don't eval the array arg
                 # which is easy since it only takes one arg
                 elif (str(name) == 'chop'):
@@ -752,7 +752,7 @@ class Parser:
                     if (eat_paren):
                         self.eat(TokenType.RPAREN)
                     return BuiltInFunctionNode(name, None, [ValueNode(var_name)])
-                                    
+
                 # shift/pop is special since its destructive, don't eval the array arg
                 # which is easy since it only takes one arg
                 elif (str(name) in [ 'shift', 'pop' ]):
@@ -770,14 +770,14 @@ class Parser:
                     if (eat_paren):
                         self.eat(TokenType.RPAREN)
                     return BuiltInFunctionNode(name, None, [ValueNode(var_name)])
-                    
+
                 # unshift is special since its destructive, don't eval the array arg
                 elif (str(name) == 'unshift'):
                     eat_paren = False
                     if (self.current_token.type == TokenType.LPAREN):
                         self.eat(TokenType.LPAREN)
                         eat_paren = True
-                        
+
                     # '@' is optional
                     if (self.current_token.type == TokenType.LIST):
                         self.eat(TokenType.LIST)
@@ -787,7 +787,7 @@ class Parser:
                         self.eat(TokenType.COMMA)
                     else:
                         return BuiltInFunctionNode(name, None, [ValueNode(var_name), ValueNode(Value(None))])
-                    
+
                     args = self.consume_list()
                     if (eat_paren):
                         self.eat(TokenType.RPAREN)
@@ -798,45 +798,45 @@ class Parser:
             else:
                 # its a BAREWORD, interp as string
                 return ValueNode(str(name))
-                
+
         elif (token.type == TokenType.FILEHANDLE):
             self.eat(TokenType.FILEHANDLE)
             return FileHandleNode(token.value, self.in_loop_expr)
-            
+
         elif (token.type == TokenType.BACKTICKS):
             self.eat(TokenType.BACKTICKS)
             return BackTicksNode(token.value)
-                
+
         elif (token.type == TokenType.INTERP_STR):
             self.eat(TokenType.INTERP_STR)
             return InterpolatedValueNode(token.value)
-            
+
         elif (token.type == TokenType.STR):
             self.eat(TokenType.STR)
             return ValueNode(token.value)
-            
+
         elif (token.type == TokenType.INTEGER):
             self.eat(TokenType.INTEGER)
             return ValueNode(token.value)
-            
+
         elif (token.type == TokenType.FLOAT):
             self.eat(TokenType.FLOAT)
             return ValueNode(token.value)
-            
+
         elif (token.type == TokenType.LPAREN):
             self.eat(TokenType.LPAREN)
             result = self.expression()
             self.eat(TokenType.RPAREN)
             return result
-            
+
         raise Exception("Unknown token in factor(): " + str(token.value))
-        
+
     def consume_list(self, ender=None):
         """ This is kinda hacky... it attempts to read a list, whether for
             array purposes or for function arguments.  List can start with
             an LPAREN or not.  If not, then end of list is either an RPAREN,
             SEMICOLON or a statement modifier (if, until, unless, while...)
-            
+
             If ender is a SEMICOLON, stop processig the list, but don't eat it
             since the statement() func will take care of eating end of statements
         """
@@ -848,7 +848,7 @@ class Parser:
                 self.eat(TokenType.LPAREN)
         else:
             end_token = ender
-  
+
         while ((self.current_token.type != end_token) and
                 (self.current_token.type != TokenType.SEMICOLON) and
                 (self.current_token.type != TokenType.RPAREN) and

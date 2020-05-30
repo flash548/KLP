@@ -478,6 +478,9 @@ class Lexer:
 
             if (self.current_char == '.'):
                 self.advance()
+                if (self.current_char == '.'):
+                    self.advance()
+                    return self.make_token(TokenType.DOTDOT, Value('..'))
                 if (self.current_char == '='):
                     self.advance()
                     return self.make_token(TokenType.STR_INCR, Value('.='))

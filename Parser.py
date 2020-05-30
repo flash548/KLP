@@ -448,6 +448,7 @@ class Parser:
                 TokenType.STR_GE,
                 TokenType.MOD,
                 TokenType.REPEAT,
+                TokenType.DOTDOT,
                 TokenType.ID):
 
             token = self.current_token

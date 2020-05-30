@@ -29,6 +29,7 @@ vm.set_variable('stderr', Value(sys.stderr), 'raw')
 is_stdin = False
 is_n = False
 is_e = False
+is_dump = False
 code = ''
 filename = ''
 arg_count = 0
@@ -49,6 +50,8 @@ for arg in sys.argv[1:]:
             for sw in arg[1:]:
                 if sw == 'n':
                     is_n = True
+                elif sw == 'd':
+                    is_dump = True
                 elif sw == 'e':
                     is_e = True
                     if len(arg[idx:])-1 == idx: # end of arg, jump to next for contents
@@ -94,11 +97,13 @@ ast = p.parse()
 
 # walk and emit bytecode from AST (compile)
 ast.emit(vm)
-#vm.dump_pgm_stack()
 
 # run the VM
 #try:
-vm.run()
+if (not is_dump):
+    vm.run()
+else:
+    vm.dump_pgm_stack()
 #except Exception as e:
 #    print str(e)
     #pass

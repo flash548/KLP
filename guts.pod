@@ -1,0 +1,76 @@
+=pod
+
+=head1 DESCRIPTION
+
+Describe the inter-workings of KLP
+
+=head1 OVERVIEW
+
+The flow of 'execution' of the parse-compile-execute sequence is as follows:
+
+ main.py -> Lexer.py -> Parser.py -> AST.py -> VM.py -> VM.run()
+
+You can see this in action inside the main.py file:
+
+ # load in the code from somewhere as string
+ lex = Lexer(code)
+ # scan, parse, to IR (AST)
+ p = Parser(lex)
+ # fill/make the AST
+ ast = p.parse()
+ # walk and emit bytecode from AST (compile)
+ ast.emit(vm)
+ # run the VM's code (program stack)
+ vm.run()
+
+=head1 DETAILS
+
+Compiling the code to a bytecode-format in a "Virtual Machine" allows us a really
+easy way to step through code and/or do branching/goto/etc required by many common
+language constructs.  Plus this is how a lot of languages work anyways - e.g. the
+Python VM, Java VM, etc etc
+
+So a program in KLP like this:
+
+    @arr = (1,2,3,4);
+
+    $i = 0;
+    while (1) {
+        print "i is => ", $arr[$i], "\n";
+        last if ($i++) >= 3;
+    }
+
+    print "Done!";
+
+
+Ran with the 'dump' option (-d) would look like this in bytecode form:
+
+    0: PUSH CONST: 1
+    1: PUSH CONST: 2
+    2: PUSH CONST: 3
+    3: PUSH CONST: 4
+    4: LIST ASSIGN: arr 4
+    5: PUSH CONST: 0
+    6: SCALAR ASSIGN: i False
+    7: PUSH CONST: 1
+    8: BZ: 25
+    9: PUSH INTERP CONST: i is =>
+    10: PUSH SCALAR VAR: i False
+    11: PUSH SCALAR VAR: arr True
+    12: PUSH INTERP CONST:
+    13: CALL: print None 3
+    14: PUSH SCALAR VAR: i False
+    15: PUSH CONST: 1
+    16: INCR SCALAR: i False
+    17: PUSH CONST: 3
+    18: BINOP: >=
+    19: BZ: 22
+    20: GOTO END LOOP: None
+    21: JMP: 22
+    22: LABEL: CONTINUE_LOOP 9 None
+    23: JMP: 7
+    24: LABEL: END_LOOP None
+    25: PUSH INTERP CONST: Done!
+    26: CALL: print None 1
+
+=cut

@@ -112,6 +112,10 @@ I hope to change this soon.
 
 - No support for %SIG hash (yet), but %ENV is supported
 
+- Most tests pass in the test suite, but there are some remaining precedence issues
+
+- No '..' operator yet...
+
 =head1 TESTS
 
 This is how KLP stacks up to the original Perl 1.0 test suite

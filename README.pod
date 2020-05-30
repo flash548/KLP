@@ -1,20 +1,230 @@
-Perl on Python for Pythonista (3P) is an attempt to implement VERY BASIC functionality of core Perl (starting from Perl 1)  using Python 2.7.  The target is Pythonista on iOS.  I wanted Perl to be able to do some basic text analysis and processing.  Yes you can use Python to do that, but I'm used to Perl and thought this might be a fun project (maybe).  The level of functionality here would be akin to something of Perl 1.0 at this point ...and its a slow work in progress.  
+=pod
 
-This is also another attempt to learn to write a full blown lexer/parser/compiler.  There's a great tutorial out there - https://ruslanspivak.com/lsbasi-part1/ that got me started on this and other language writing projects. 
+=head1 NAME
 
-I apologize for lack of documentation at this point, but I'll be documenting more in the near future.
+Kinda Like Perl (KLP)
 
-Basic overview-
+=head1 DESCRIPTION
+
+This language is "Kinda Like Perl"... in that its syntax highly resembles that
+ of Perl 1.0, and passes the majority of its test suite, but not all features
+ are implemented and/or behave exactly like that of the real, official Perl 1.0. To
+ have that, you need Perl.
+
+ This project came about while using Pythonista on iOS along with the StaSH shell. I
+ wanted to have some ability to do some text processing/searching and come from a
+ background of using Perl a lot on-the-job.  While one could probably port Perl
+ to iOS, I wanted all the capabilities already affored in Pythonista so I figured I could settle
+ on something that brought Just Enough Perl (maybe I should've called the project that) to
+ StaSH that I could do what I needed.
+
+ So I set about reimplementing core parts of Perl 1.0 in Python - deciding on 1.0 since it would
+ be easier than something as complex as Perl 5.xx (..and easy it was not).  I'm not a CS major nor
+ one versed in creating computer languages, but I did learn a lot along the way (HIGHLY recommend
+ starting here https://ruslanspivak.com/lsbasi-part1/ if you want to learn how to write a language).
+
+ Like I said, KLP does pass the majority of the Perl 1.0 test suite scripts, but that
+ doesn't mean it has 1:1 behavior with Perl 1.0 - guarantee there's large
+ bugs lurking around in the code base.  There's also numerous built-ins not implemented
+ some due to be added in the future but some partly due to the fact you can't use them
+ anyways on iOS StaSH environemnt as its not a fully compatible Unix environment anyways.
+
+ Check back often, as I plan to actively keep developing on this...
+
+=head1 Status
+
+Here's a brief summary on its state of affairs:
+
+- KLP does not output very meaningful compile-time or run-time errors.  Most of
+the time if you get an exception/croak, check to see if you missed a semicolon
+or called a non-defined sub or built-in. (TODO: fix, but until then good luck)
+
+- Doesn't allow '$ ' (blank register) as a variable name (but neither does Perl5),
+so that fails a test in "t/base.lex" in its original form...
+
+- Does NOT even come close to the speed of real Perl. This is due to some MAJOR
+inefficiencies in the design of KLP.  Not gonna worry about that at this time.
+
+- Doesn't split quite like Perl.  e.g. "split / */ " in real Perl
+causes string to split on whitespace and in between characters, since KLP
+relies on Python's regex engine, its kind of a hack, but it does pass "t/op.split"
+
+- Doesn't currently allow subscripted variables (or hash variables) in
+interpolated strings... but then again Perl 1 didn't either (as told in its man page)
+I hope to change this soon.
+
+- Doesn't *currently* assign (unpack) to array or hash elements
+
+- Doesn't support 'format' built-in or any special variables associated with that
+
+- Supports `backticks` and attempts to set $? accordingly
+
+- List of perl1 functions not implemented:
+    - fork, times, exec, system, chown, kill, select, write
+
+- Here's the list of IMPLEMENTED perl1 functions:
+    - print, length, join, keys, values, each, eval, open, close, die, eof, shift,
+      unshift, seek, tell, index, sprintf, crypt, chop, sleep, push, pop, split,
+      printf, ord, chr, int, hex, oct, localtime, gmtime, time, stat, substr, exp,
+      sqrt, log, chdir, chmod, umask, unlink, rename, link, exit
+
+- List of special variables not implemented (or ignored):
+    - $[ (first index of lists is always 0 in KLP)
+    - $^, $-, $%, $~, $=, $# (format variables)
+    - $/
+
+- Maybe better to list the ones that ARE supported:
+    - $_
+    - @_
+    - @ARGV
+    - %ENV
+    - $!
+    - $.
+    - $+
+    - $, (output field sep)
+    - $\ (output record sep)
+    - $0
+    - $1 thru 10
+    - $@
+
+- No module support, again like Perl 1.  Would be nice though...
+
+- Doesn't support the Perl 1 "-P" option where script is put through the C preprocessor first
+
+- Only supports -n and -e switches at this time, and only one (1) -e switch
+
+- No support for %SIG hash (yet), but %ENV is supported
+
+=head1 TESTS
+
+This is how KLP stacks up to the original Perl 1.0 test suite
+
+B<Test Name>:B<Status>:B<Remarks>
+base.term       :GO
+
+cmd.elsif       :GO
+
+cmd.for         :GO
+
+cmd.mod         :GO
+
+cmd.subval      :GO
+
+cmd.while       :GO
+
+comp.cmdopt     :GO
+
+comp.multiline  :GO
+
+comp.script     :GO
+
+comp.term       :GO
+
+io.fs           :GO
+
+io.argv         :ALMOST => Test #4 and #5 fail
+
+io.print        :GO
+
+io.tell         :GO
+
+io.inplace      :NOGO => NYI
+
+op.each         :GO
+
+op.append       :GO
+
+op.auto         :GO
+
+op.chop         :GO
+
+op.do           :GO
+
+op.crypt        :GO
+
+op.cond         :GO
+
+op.goto         :GO => Note: requires main.py to be symlinked to "./perl"
+
+op.eval         :ALMOST => Test #5 and #6 fails (KLP doesn't handle malformed m// specs yet)
+
+op.int          :GO
+
+op.join         :GO
+
+op.list         :NOGO => Doesn't support unpacking to array elements/hash elements yet
+
+op.flip         :NOGO => '..' range operator not implemented yet
+
+op.exp          :GO
+
+op.pat          :GO
+
+op.push         :GO
+
+op.repeat       :GO
+
+op.oct          :GO
+
+op.sleep        :GO
+
+op.split        :GO
+
+op.stat         :GO
+
+op.sprintf      :GO
+
+op.subst        :GO
+
+op.unshift      :GO
+
+op.time         :ALMOST => times() not implemented so fails test #1
+
+cmd.cpp         :Not Implemented/Tested => KLP doesn't support -P / preprocessor processing
+
+comp.decl       :Not Implemented/Tested => 'format' not supported
+
+op.exec         :Not Implemented/Tested
+
+op.fork         :Not Implemented/Tested
+
+op.magic        :Not Implemented/Tested => signals not supported
+
+=head1 FILES
+
 Lexer.py - The lexer/scanner class which produces tokens for the Parser
 
-Parser.py - Parses the language grammar by consuming (expected) tokens, and produces an Abstract Syntax Tree
+Parser.py - Parses the language grammar by consuming (expected) tokens, and produces an Abstract Syntax Tree (AST)
 
-AST.py - Custom AST with all the various subclasses representing various contructs of the language.  By 'walking' the tree, we call on each class' emit() method to emit its bytecodes and arguments into an instance of the virtual machine.
+AST.py - Custom AST with all the various subclasses representing various contructs of the language.  By 'walking' the tree, we call on each node's emit() method to emit its bytecodes and arguments into an instance of the virtual machine.
 
 VM.py - Virtual Machine.  Executes bytecodes and manages the expression stack and symbol/variable table(s).  At this point everything's global and there's no scopes - in the full spirit of Perl 1.
 
-TokenType.py - Defines all the tokens we're working with
+DataStack.py - Wrapper around a Python list with size limiting and push() method
 
-main.py - A simple driver script to run some language statements
+TokenType.py - Defines all the tokens we're working with as well as the built-in function names
 
-Value.py - Everything we parse is a 'value'...everything on the stack is a 'value. A Value is any object, but can be interpreted differently depending on the context - just like Perl's values.
+main.py - The driver script to run KLP.  This is probably was you want to symlink to as "perl".
+
+Value.py - Everything we parse is a 'value'...everything on the stack is a 'value'. A Value is any object, but can be interpreted differently depending on the context - just like Perl's values.
+
+=head1 TODO
+
+Here's a list of some TODOs/nice-to-haves that would make KLP diverge from Perl 1.0:
+
+- Borrow some Perl5 features (like hash declarations, opendir/readdir, chomp, say...)
+
+- Support sockets (backed by Python socket lib)
+
+- Better interoperability with Python as an embedded languages
+
+- Document better!
+
+- Fix stack leaks/speed
+
+=head1 LICENSE
+
+This program is free software; you can redistribute it and/or modify it
+under the same terms as Perl itself.
+
+=cut

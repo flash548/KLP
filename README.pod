@@ -11,25 +11,25 @@ This language is "Kinda Like Perl"... in that its syntax highly resembles that
  are implemented and/or behave exactly like that of the real, official Perl 1.0. To
  have that, you need Perl.
 
- This project came about while using Pythonista on iOS along with the StaSH shell. I
+This project came about while using Pythonista on iOS along with the StaSH shell. I
  wanted to have some ability to do some text processing/searching and come from a
  background of using Perl a lot on-the-job.  While one could probably port Perl
  to iOS, I wanted all the capabilities already affored in Pythonista so I figured I could settle
  on something that brought Just Enough Perl (maybe I should've called the project that) to
  StaSH that I could do what I needed.
 
- So I set about reimplementing core parts of Perl 1.0 in Python - deciding on 1.0 since it would
+So I set about reimplementing core parts of Perl 1.0 in Python - deciding on 1.0 since it would
  be easier than something as complex as Perl 5.xx (..and easy it was not).  I'm not a CS major nor
  one versed in creating computer languages, but I did learn a lot along the way (HIGHLY recommend
  starting here https://ruslanspivak.com/lsbasi-part1/ if you want to learn how to write a language).
 
- Like I said, KLP does pass the majority of the Perl 1.0 test suite scripts, but that
+Like I said, KLP does pass the majority of the Perl 1.0 test suite scripts, but that
  doesn't mean it has 1:1 behavior with Perl 1.0 - guarantee there's large
  bugs lurking around in the code base.  There's also numerous built-ins not implemented
  some due to be added in the future but some partly due to the fact you can't use them
  anyways on iOS StaSH environemnt as its not a fully compatible Unix environment anyways.
 
- Check back often, as I plan to actively keep developing on this...
+Check back often, as I plan to actively keep developing on this...
 
 =head1 Status
 
@@ -63,29 +63,45 @@ I hope to change this soon.
     - fork, times, exec, system, chown, kill, select, write
 
 - Here's the list of IMPLEMENTED perl1 functions:
-    - print, length, join, keys, values, each, eval, open, close, die, eof, shift,
+
+      I<print, length, join, keys, values, each, eval, open, close, die, eof, shift,
       unshift, seek, tell, index, sprintf, crypt, chop, sleep, push, pop, split,
       printf, ord, chr, int, hex, oct, localtime, gmtime, time, stat, substr, exp,
-      sqrt, log, chdir, chmod, umask, unlink, rename, link, exit
+      sqrt, log, chdir, chmod, umask, unlink, rename, link, exit>
 
 - List of special variables not implemented (or ignored):
+
     - $[ (first index of lists is always 0 in KLP)
+
     - $^, $-, $%, $~, $=, $# (format variables)
+
     - $/
 
 - Maybe better to list the ones that ARE supported:
     - $_
+
     - @_
+
     - @ARGV
+
     - %ENV
+
     - $!
+
     - $.
+
     - $+
+
     - $, (output field sep)
+
     - $\ (output record sep)
+
     - $0
+
     - $1 thru 10
+
     - $@
+
 
 - No module support, again like Perl 1.  Would be nice though...
 
@@ -99,7 +115,8 @@ I hope to change this soon.
 
 This is how KLP stacks up to the original Perl 1.0 test suite
 
-B<Test Name>:B<Status>:B<Remarks>
+B<Test Name>/B<Status>/B<Remarks>
+
 base.term       :GO
 
 cmd.elsif       :GO

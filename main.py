@@ -6,10 +6,20 @@ from AST import *
 from VM import *
 import sys, os, re
 
+s = None
+
 # init the lexer and vm objs as globals
 # lexer gets init'd later on
 lex = None
 vm = VM()
+
+try:
+    global _stash
+    s = _stash
+    vm.is_stash = True
+    vm._stash = s
+except:
+    pass
 
 # set the %ENV hash in the VM
 env = vm.get_variable('ENV', 'hash')

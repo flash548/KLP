@@ -72,7 +72,9 @@ class BuiltIns():
     def do_backticks(vm, cmd):
         result = None
         try:
-            if os.name == 'nt':
+            if vm.is_stash:
+                result = vm._stash(cmd.stringify())
+            elif os.name == 'nt':
                 # windows
                 result = subprocess.check_output(['cmd', '/c', cmd.stringify()], stderr=subprocess.STDOUT)
             elif os.name.endswith('ix'):

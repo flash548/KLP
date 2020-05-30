@@ -31,7 +31,9 @@ class VM:
         self.current_scope = {}  # place where we store variables
         self.scope_stack = []
         self.first_null_file_hdl_call = True
-
+        self.is_stash = False
+        
+        
     def get_variable(self, name, type):
         if type == 'scalar':
             name = '$' + name

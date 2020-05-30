@@ -64,10 +64,10 @@ I hope to change this soon.
 
 - Here's the list of IMPLEMENTED perl1 functions:
 
-      I<print, length, join, keys, values, each, eval, open, close, die, eof, shift,
+      print, length, join, keys, values, each, eval, open, close, die, eof, shift,
       unshift, seek, tell, index, sprintf, crypt, chop, sleep, push, pop, split,
       printf, ord, chr, int, hex, oct, localtime, gmtime, time, stat, substr, exp,
-      sqrt, log, chdir, chmod, umask, unlink, rename, link, exit>
+      sqrt, log, chdir, chmod, umask, unlink, rename, link, exit
 
 - List of special variables not implemented (or ignored):
 

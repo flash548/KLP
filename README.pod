@@ -120,6 +120,8 @@ I hope to change this soon.
 
 This is how KLP stacks up to the original Perl 1.0 test suite
 
+ Note: Perl 1.0 test suite is available at Allison Randal's Perl 1.0 Golang implementation - https://github.com/allisonrandal/gunie
+
 B<Test Name>/B<Status>/B<Remarks>
 
 base.cond       :GO
@@ -130,7 +132,7 @@ base.if         :GO
 
 base.pat        :GO
 
-base.term       :GO
+base.term       :GO (Need to make a dummy file /etc/termcap for the last test)
 
 cmd.elsif       :GO
 

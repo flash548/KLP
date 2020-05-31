@@ -122,6 +122,14 @@ This is how KLP stacks up to the original Perl 1.0 test suite
 
 B<Test Name>/B<Status>/B<Remarks>
 
+base.cond       :GO
+
+base.lex        :ALMOST => Fails Test #1 (Blank register)
+
+base.if         :GO
+
+base.pat        :GO
+
 base.term       :GO
 
 cmd.elsif       :GO

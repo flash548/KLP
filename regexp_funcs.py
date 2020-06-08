@@ -1,3 +1,14 @@
+###############################################################################
+#
+# Filename: regexp_funcs.py 
+#
+# Description: These are all the regex backing functions 
+#
+# Revision History:
+#   1-Jun-20: Initial Documentation/Release
+#
+###############################################################################
+
 import re
 import string
 from Value import *

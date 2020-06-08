@@ -1,18 +1,36 @@
+###############################################################################
+#
+# Filename: Lexer.py
+#
+# Description: This is the Lexer class (scanner) for KLP.  The get_next_token()
+# method is used by the Parser (Parser.py) to get the current (next) token.
+#
+# Revision History:
+#   31-May-20: Initial Documentation/Release
+#
+###############################################################################
+
 import string
 from Value import *
 from TokenType import Token, TokenType
 
 
 class Lexer:
+    """ This class comprises the Lexer - which loads the program source
+        and scans for tokens as commanded by the Parser
+    """
+
     def __init__(self, text):
-        self.text = text
-        self.pos = 0
-        self.current_char = self.text[self.pos]
-        self.previous_char = None
-        self.prev_token = Token(TokenType.EOF, None)
-        self.prev_scalar = False
-        self.line_number = 0
-        self.anchor_val = 0
+        self.text = text # the text of the program to parse/run
+        self.pos = 0 # position in the 'text'
+        self.current_char = self.text[self.pos] # the current char were scanning
+        self.previous_char = None # the previous char we scanned
+        self.prev_token = Token(TokenType.EOF, None) # the previous_token we sent
+        self.prev_scalar = False # whether previous token was a scalar ID
+        self.line_number = 0 # line number in the 'text'
+        self.anchor_val = 0 # position anchor the parser can use to come back to 
+
+        # chars allowable as first char after a sigil - for the special variables
         self.allowable_var_chars = ['$', '+', '.', '_', '@', '#', '!', '^', '%', '\\', '/', '*', ',' ]
 
     def error(self):
@@ -156,6 +174,8 @@ class Lexer:
 
 
     def get_id(self):
+        """ Discern between an ID/varname and a language reserved keyword """
+
         name = ""
         first_char = True
         while (
@@ -203,6 +223,12 @@ class Lexer:
             return self.make_token(TokenType.ID, Value(name))
 
     def parse_match_spec(self, with_m=False):
+        """ Parse out a regex match specification i.e. m/Hello/
+            This returns a MATCH_SPEC token with a value that is 
+            an object:
+            { 'type':'m', 'spec':<regex pattern>, 'opts':<flags> }
+        """
+        
         start_pos = self.pos
         match_regex = ''
         opts = ''
@@ -231,6 +257,11 @@ class Lexer:
             return None
 
     def parse_trans_spec(self):
+        """ Parse out a transliteration specification (e.g. tr/a-z/A-Z/ or y/a-z/A-Z/)
+            This returns an object:
+            { 'type':'y', 'spec':<tr pattern>, 'repl':<replacement string> }
+        """
+        
         search_spec = ''
         repl_spec = ''
         start_char = self.current_char
@@ -252,6 +283,8 @@ class Lexer:
         return self.make_token(TokenType.TRANS_SPEC, Value({'type': 'y', 'spec': search_spec, 'repl': repl_spec}))
 
     def parse_subs_spec(self):
+        """ Parse out a substitution specification (e.g. s/Hello/World/gi) """
+
         search_spec = ''
         repl_spec = ''
         opts = ''
@@ -296,6 +329,12 @@ class Lexer:
         return self.make_token(TokenType.BACKTICKS, Value(cmdstr))
 
     def get_next_token(self):
+        """ This is used by the parser to get the next token - which 
+            is of "Token" type (defined in TokenType.py).  This is kind
+            of a crazy function as a lot is going on, and I know it could
+            be written much better
+        """
+        
         while (self.current_char != '\0'):
             # TODO: fix this mess, does a lookbehind to see if previous
             # chars where '$' or '$#' or '@' so that we know we are to parse
@@ -553,7 +592,7 @@ class Lexer:
                         self.advance()
                         return self.make_token(TokenType.FILEHANDLE, Value(bareword))
                     else:
-                        raise Exception("Lexer error attempting to scan filehandle")
+                        raise Exception("Lexer error attempting to scan filehandle - char was %s" % self.current_char)
                 elif (self.peek() == '>'):
                     self.advance()
                     self.advance()
@@ -640,6 +679,8 @@ class Lexer:
         return self.make_token(TokenType.EOF, Value("EOF"))
 
     def dump_tokens(self):
+        """ Utility method to dump all the tokens in the provided program text """
+
         tok = self.get_next_token()
         while (tok.type != TokenType.EOF):
             print tok.type + " ... " + str(tok.value)

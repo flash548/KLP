@@ -1,10 +1,23 @@
+###############################################################################
+#
+# Filename: builtin_funcs.py
+#
+# Description:
+# This file contains the backing subs for all the KLP builtin-ins.
+# All funcs get an instance of the VM 'vm' and the arguments passed as an
+# array of Values 'argv' passed by the program.  Remember args are REVERSED
+# as they are given (popped off in reverse order), so first arg is last in 
+# argv... easier to do argv[-1].. argv[-2]... etc. Funcs can then push their
+# response back onto the stack using vm.stack.push().
+#
+# Revision History:
+#   31-May-20: Initial release/documentation
+# 
+###############################################################################
+
 from Value import Value
 from regexp_funcs import *
-import sys
-import os
-import re
-import time
-import math
+import sys, os, re, time, math
 
 import subprocess
 from subprocess import CalledProcessError
@@ -14,6 +27,11 @@ class BuiltIns():
 
     @staticmethod
     def do_print(vm, fh, argv):
+        """ Implementation of the 'print' method, here
+            there's an fh arg given, if not None, then a
+            other-than-stdout handle was provided
+        """
+
         sep = vm.get_variable(',', 'scalar').stringify()
         end = vm.get_variable('\\', 'scalar').stringify()
         itr = 0
@@ -21,26 +39,26 @@ class BuiltIns():
         if (len(argv) > 0):
             for i in range(len(argv)-1, -1, -1):
                 if fh == None:
-                    sys.stdout.write(argv[i].stringify())
+                    sys.stdout.write(argv[i].stringify(sep))
                 else:
                     if str(fh) == 'stdout':
-                        sys.stdout.write(argv[i].stringify())
+                        sys.stdout.write(argv[i].stringify(sep))
                     else:
-                        vm.get_variable(fh, 'raw')._val.write(argv[i].stringify())
+                        vm.get_variable(fh, 'raw')._val.write(argv[i].stringify(sep))
                 if (itr < count and itr != ''):
                     sys.stdout.write(sep)
                     itr += 1
         else:
             # print $_
             if fh == None:
-                sys.stdout.write(vm.get_variable('_', 'scalar').stringify())
+                sys.stdout.write(vm.get_variable('_', 'scalar').stringify(sep))
             else:
                 if str(fh) == 'stdout':
-                    sys.stdout.write(vm.get_variable('_', 'scalar').stringify())
+                    sys.stdout.write(vm.get_variable('_', 'scalar').stringify(sep))
                 elif str(fh) == 'stderr':
-                    sys.stderr.write(vm.get_variable('_', 'scalar').stringify())
+                    sys.stderr.write(vm.get_variable('_', 'scalar').stringify(sep))
                 else:
-                    vm.get_variable(fh, 'raw')._val.write(vm.get_variable('_', 'scalar').stringify())
+                    vm.get_variable(fh, 'raw')._val.write(vm.get_variable('_', 'scalar').stringify(sep))
 
         if end != '':
             sys.stdout.write(end)
@@ -48,8 +66,9 @@ class BuiltIns():
 
     @staticmethod
     def do_die(vm, argv):
-        if len(argv) > 0:
+        """ Perl-like 'die' method.  Touches the $! variable """
 
+        if len(argv) > 0:
             if (type(argv[0] is str)):
                 vm.set_variable('!', Value(argv[0]), 'scalar')
                 print((argv[0]))
@@ -63,6 +82,8 @@ class BuiltIns():
 
     @staticmethod
     def do_exit(vm, argv):
+        """ Exits the interpreter with provided code - 0 otherwise """
+
         code = 0
         if len(argv) > 0:
             code = argv[-1].numerify()
@@ -70,9 +91,12 @@ class BuiltIns():
 
     @staticmethod
     def do_backticks(vm, cmd):
+        """ Performs the backticks operation - dependent on platform """
+
         result = None
         try:
             if vm.is_stash:
+                # this is StaSH on iOS
                 result = vm._stash(cmd.stringify())
             elif os.name == 'nt':
                 # windows
@@ -85,16 +109,21 @@ class BuiltIns():
 
             vm.set_variable('?', Value(0), 'scalar')
         except CalledProcessError as e:
+            print result
             vm.set_variable('?', Value(e.returncode), 'scalar')
 
         vm.stack.push(Value(result))
 
     @staticmethod
     def do_length(vm, argv):
+        """ String length function """
+
         vm.stack.push(Value(len(str(argv[0]))))
 
     @staticmethod
     def do_join(vm, argv):
+        """ Join built in """
+
         ary = None
         joiner = None
         # perl 1 allowed any order of the args here.
@@ -136,6 +165,8 @@ class BuiltIns():
 
     @staticmethod
     def do_keys(vm, argv):
+        """ Implementation of keys() builtin """
+
         # perl 1 allows a bareword for hash argument...
         if type(argv[0]) is Value:
             key_arry = argv[0]._val.keys()
@@ -149,6 +180,8 @@ class BuiltIns():
 
     @staticmethod
     def do_values(vm, argv):
+        """ The values() builtin for hashes """
+
         # perl 1 allows a bareword for hash argument...
         if type(argv[0]) is Value:
             val_arry = argv[0]._val.values()
@@ -162,6 +195,8 @@ class BuiltIns():
 
     @staticmethod
     def do_each(vm, argv):
+        """ The each() builtin for hashes """
+
         # perl 1 allows a bareword for hash argument...
         if type(argv[0]) is Value:
             pair = argv[0]._each()
@@ -173,6 +208,11 @@ class BuiltIns():
 
     @staticmethod
     def do_eval(vm, argv):
+        """ Eval builtin - touches the $@ variable """
+
+        # Doing an eval basically is a whole other
+        # parse-compile-run operation...
+
         from Lexer import Lexer
         from Parser import Parser
         from VM import VM
@@ -209,6 +249,8 @@ class BuiltIns():
 
     @staticmethod
     def do_open(vm, argv):
+        """ open() built-in """
+
         handle = str(argv[1])
         filename = str(argv[0])
         fp = None
@@ -238,6 +280,9 @@ class BuiltIns():
 
     @staticmethod
     def do_close(vm, argv):
+        """ close() builtin """
+
+        # arg comes in as a filehandle
         handle = str(argv[0])
         fp = vm.get_variable(handle, 'raw')
         error = ''
@@ -254,6 +299,11 @@ class BuiltIns():
 
     @staticmethod
     def do_eof(vm, argv):
+        """ eof() builtin """
+
+        # arg comes in as a bareword - if any provided at all
+        # if no arg, then last file handle read from 
+        # which is tracked by the VM (vm.last_fh_read)
         handle = None
         fp = None
         if len(argv) > 0:
@@ -277,6 +327,8 @@ class BuiltIns():
 
     @staticmethod
     def do_shift(vm, argv):
+        """ The shift built in """
+
         v = vm.get_variable(str(argv[0]), 'list')
         elem0 = Value(None)
         if (len(v) > 1):
@@ -291,6 +343,8 @@ class BuiltIns():
 
     @staticmethod
     def do_unshift(vm, argv):
+        """ Unshift builtin """
+
         name = str(argv[-1])
         v = vm.get_variable(name, 'list')
 
@@ -303,6 +357,8 @@ class BuiltIns():
 
     @staticmethod
     def do_index(vm, argv):
+        """ Index string builtin function """
+
         src = str(argv[1])
         search = str(argv[0])
         pos = -1
@@ -310,6 +366,8 @@ class BuiltIns():
             pos = src.index(search, 0)
         except:
             pass
+
+        # if something went wrong just return blank value
         vm.stack.push(Value(pos))
 
 
@@ -321,6 +379,12 @@ class BuiltIns():
     # soooo picky!  This is just ugly.
     @staticmethod
     def do_sprintf(vm, argv):
+        """ The sprintf method, hacky here in Python
+            since Python sprintf has to have correct data
+            types for certain specifiers, so we have to 
+            inspect the specifiers ourselves
+        """
+
         fmt_str = None
         fmt_str = argv[-1]
         if (fmt_str.type == "List"):
@@ -367,6 +431,8 @@ class BuiltIns():
 
     @staticmethod
     def do_seek(vm, argv):
+        """ File seek() builtin """
+
         handle = str(argv[-1])
         offset = argv[-2].numerify()
         whence = 0
@@ -388,6 +454,8 @@ class BuiltIns():
 
     @staticmethod
     def do_tell(vm, argv):
+        """ File tell() function """
+
         handle = None
         fp = None
         if len(argv) > 0:
@@ -401,6 +469,8 @@ class BuiltIns():
 
     @staticmethod
     def do_crypt(vm, argv):
+        """ Crypt() builtin """
+
         word = argv[-1]
         salt = argv[-2]
 
@@ -408,6 +478,8 @@ class BuiltIns():
 
     @staticmethod
     def do_chop(vm, argv):
+        """ Chop builtin """
+
         var = None
         name = None
         if (len(argv) == 0):
@@ -426,6 +498,8 @@ class BuiltIns():
 
     @staticmethod
     def do_push(vm, argv):
+        """ Push builtin """
+
         name = str(argv[-1])
         v = vm.get_variable(name, 'list')
 
@@ -442,6 +516,8 @@ class BuiltIns():
 
     @staticmethod
     def do_pop(vm, argv):
+        """ Pop builtin """
+
         v = vm.get_variable(str(argv[0]), 'list')
         elem0 = Value(None)
         if (len(v) >= 1):
@@ -453,6 +529,9 @@ class BuiltIns():
 
     @staticmethod
     def do_sleep(vm, argv):
+        """ Sleep builtin - sleeps specified seconds """
+
+        # 0 is eternal sleep
         if (len(argv) == 0):
             time.sleep(float('Inf'))
         else:
@@ -462,6 +541,10 @@ class BuiltIns():
 
     @staticmethod
     def do_split(vm, argv):
+        """ Split builtin """
+        
+        # tried to make this as Perl-like as I could...
+
         spec = argv[-1]
         var = argv[-2]
         if (var._val == None):
@@ -507,15 +590,21 @@ class BuiltIns():
 
     @staticmethod
     def do_printf(vm, fh, argv):
+        """ Printf builtin - uses sprintf to do it """
+
         BuiltIns.do_sprintf(vm, argv)
         BuiltIns.do_print(vm, fh, [ vm.stack.pop() ])
 
     @staticmethod
     def do_ord(vm, argv):
+        """ ord() builtin """
+
         vm.stack.push(Value(ord(argv[-1].stringify()[0])))
 
     @staticmethod
     def do_chr(vm, argv):
+        """ chr() builtin """
+
         try:
             val = chr(argv[-1].numerify())
             vm.stack.push(Value(val))
@@ -524,6 +613,8 @@ class BuiltIns():
 
     @staticmethod
     def do_hex(vm, argv):
+        """ hex() builtin """
+
         try:
             val = int((argv[-1].stringify()), 16)
             vm.stack.push(Value(val))
@@ -532,6 +623,10 @@ class BuiltIns():
 
     @staticmethod
     def do_oct(vm, argv):
+        """ oct() builtin -- if argv starts with 0x then
+            treats it like hex in Perl-like fashion 
+        """
+
         try:
             val = argv[-1].stringify()
             if val.upper().startswith("0X"):
@@ -547,6 +642,8 @@ class BuiltIns():
 
     @staticmethod
     def do_int(vm, argv):
+        """ int() builtin """
+
         try:
             val = int((argv[-1].numerify()))
             vm.stack.push(Value(val))
@@ -555,10 +652,13 @@ class BuiltIns():
 
     @staticmethod
     def do_time(vm, argv):
+        """ time() builtin """
+
         vm.stack.push(Value(int(time.time())))
 
     @staticmethod
     def do_localtime(vm, argv):
+        """ localtime builtin """
         time_stamp = time.time()
         if (len(argv) > 0):
             time_stamp = argv[-1].numerify()
@@ -571,6 +671,8 @@ class BuiltIns():
 
     @staticmethod
     def do_gmtime(vm, argv):
+        """ gmtime() builtin """
+
         time_stamp = time.time()
         if (len(argv) > 0):
             time_stamp = argv[-1].numerify()
@@ -583,6 +685,8 @@ class BuiltIns():
 
     @staticmethod
     def do_stat(vm, argv):
+        """ File stat() builtin """
+
         f = None
         if (type(argv[-1]) is Value):
             f = argv[-1].stringify()
@@ -603,6 +707,8 @@ class BuiltIns():
 
     @staticmethod
     def do_substr(vm, argv):
+        """ Substr builtin """
+
         s = argv[-1].stringify()
         off = int(argv[-2].numerify())
         length = int(argv[-3].stringify())
@@ -611,21 +717,29 @@ class BuiltIns():
 
     @staticmethod
     def do_exp(vm, argv):
+        """ exp() builtin """
+        
         s = argv[-1].numerify()
         vm.stack.push(Value(math.exp(s)))
 
     @staticmethod
     def do_log(vm, argv):
+        """ log() log-10 builtin """
+
         s = argv[-1].numerify()
         vm.stack.push(Value(math.log(s)))
 
     @staticmethod
     def do_sqrt(vm, argv):
+        """ sqrt builtin """
+
         s = argv[-1].numerify()
         vm.stack.push(Value(math.sqrt(s)))
 
     @staticmethod
     def do_chdir(vm, argv):
+        """ chdir() builtin """
+        
         s = argv[-1].stringify()
         try:
             os.chdir(s)
@@ -635,6 +749,8 @@ class BuiltIns():
 
     @staticmethod
     def do_umask(vm, argv):
+        """ umask() builtin """
+
         s = argv[-1].numerify()
         try:
             ret = os.umask(s)
@@ -644,6 +760,8 @@ class BuiltIns():
 
     @staticmethod
     def do_rename(vm, argv):
+        """ rename() builtin """
+        
         old = argv[-1].stringify()
         new = argv[-2].stringify()
         try:
@@ -654,6 +772,8 @@ class BuiltIns():
 
     @staticmethod
     def do_unlink(vm, argv):
+        """ unlink() builtin, can take list of files """
+
         count = 0
         for i in range(len(argv)-1, -1, -1):
             try:
@@ -665,6 +785,8 @@ class BuiltIns():
 
     @staticmethod
     def do_link(vm, argv):
+        """ link() builtin """
+        
         old = argv[-1].stringify()
         new = argv[-2].stringify()
         try:
@@ -675,6 +797,8 @@ class BuiltIns():
 
     @staticmethod
     def do_chmod(vm, argv):
+        """ chmod() builtin """
+
         mode = argv[-1].numerify()
         argv = argv[0:-1]
         count = 0

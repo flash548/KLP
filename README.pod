@@ -4,6 +4,33 @@
 
 Kinda Like Perl (KLP)
 
+=head1 USAGE
+
+From within other source:
+
+    from Lexer import Lexer
+    from Parser import Parser
+    from AST import AST
+    from VM import VM
+
+    source = """
+        print "Hello World from KLP!\n";
+    """
+
+    lex = Lexer(source)
+    par = Parser(lex)
+    ast = par.parse()
+    vm = VM()
+    ast.emit(vm)
+    vm.run()
+
+From command line to imitate that of perl itself:
+
+    chmod +x main.py
+    ./main.py -e 'print "Hello World from KLP!\n";'
+
+
+
 =head1 DESCRIPTION
 
 This language is "Kinda Like Perl"... in that its syntax highly resembles that

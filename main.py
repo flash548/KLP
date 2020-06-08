@@ -40,6 +40,7 @@ is_stdin = False
 is_n = False
 is_e = False
 is_dump = False
+is_dump_toks = False
 code = ''
 filename = ''
 arg_count = 0
@@ -62,6 +63,8 @@ for arg in sys.argv[1:]:
                     is_n = True
                 elif sw == 'd':
                     is_dump = True
+                elif sw == 'D':
+                    is_dump_toks = True
                 elif sw == 'e':
                     is_e = True
                     if len(arg[idx:])-1 == idx: # end of arg, jump to next for contents
@@ -101,6 +104,11 @@ if is_n:
     code = "while (<>) { " + code + "}"
 
 lex = Lexer(code)
+if (is_dump_toks):
+    # dump tokens and exit
+    lex.dump_tokens()
+    sys.exit(0)
+
 # scan, parse, to IR (AST)
 p = Parser(lex)
 ast = p.parse()

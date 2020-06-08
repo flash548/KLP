@@ -1,15 +1,29 @@
+###############################################################################
+#
+# Filename: Parser.py
+#
+# Description: This is the Parser class for KLP. 
+#
+# Revision History:
+#   31-May-20: Initial Documentation/Release
+#
+###############################################################################
+
 from AST import *
 from TokenType import *
 
 
 class Parser:
     def __init__(self, lexer):
-        self.lineNumber = 1
-        self.lex = lexer
+        self.lex = lexer # the lexer instance Parser works with
         self.prev_token = Token(TokenType.NONE, Value(''))
-        self.current_token = self.lex.get_next_token()
+        self.current_token = self.lex.get_next_token() # seed the first token
+
+        # keywords that can be used in a statement modifier
         self.statement_modifier_tokens = [ TokenType.IF, TokenType.UNLESS,
             TokenType.UNTIL, TokenType.WHILE ];
+
+        # last label Parser encountered
         self.last_label_name = None
 
         # used by filehandle op to tell whether to set $_ or not
@@ -18,15 +32,12 @@ class Parser:
         # used by postfix incr/decr
         self.incr_decr_op = None
 
-        #
-        self.restrict_string_interpolation = False
-
 
     def error(self):
         raise Exception("Invalid syntax on line: " + str(self.lex.line_number))
 
-
     def is_an_operator(self, tok):
+        """ Returns boolean to indicate if provided token is an operator token """
         return tok in [
                     TokenType.STR_CONCAT,
                     TokenType.LOGAND,
@@ -51,10 +62,12 @@ class Parser:
                     TokenType.MOD
         ]
 
-    def parse(self):
-        return expr()
 
     def eat(self, tokType):
+        """ Consume current token whilst verifying its identity against
+            'tokType' and then ask Lexer for next token 
+        """
+
         if self.current_token.type == tokType:
             self.prev_token = self.current_token
             self.current_token = self.lex.get_next_token()
@@ -70,12 +83,19 @@ class Parser:
         if self.current_token.type == TokenType.SEMICOLON:
             self.eat(TokenType.SEMICOLON)
 
-    # program <- statement_list EOF
     def parse(self):
+        """ Program parsing starts here, the entire
+            program will be appended to this node as the 
+            AST
+        """
+
         return RootNode(self.statement_list())
 
-    # statement_list <- statement+
     def statement_list(self):
+        """ Parses a list of statements, adding returns
+            to the Abstract Syntax Tree (AST)
+        """
+
         nodes = []
 
         node = self.statement()
@@ -93,8 +113,9 @@ class Parser:
 
         return nodes
 
-    # statement <- Comment / Func_Decl / Cond / Loop / Block / Sideff ';'
     def statement(self):
+        """ Parses a language statement """
+
         if self.current_token.type == TokenType.COMMENT:
             self.eat(TokenType.COMMENT)
             return AST()
@@ -165,6 +186,7 @@ class Parser:
                 self.eat(TokenType.ID)
             return self.check_for_conditional(GotoNode(label))
 
+        # if nothing else, then treat it as an expression
         else:
             return self.check_for_conditional(self.expression())
 
@@ -173,6 +195,7 @@ class Parser:
 
     def check_for_conditional(self, node):
         """ Checks for a statement modifier (if, unless, while, until)... """
+
         if (self.current_token.type == TokenType.IF):
             self.eat(TokenType.IF)
             expr = self.expression();
@@ -193,22 +216,28 @@ class Parser:
             return node
 
     def assignment(self):
+        """ Assignment statement, we lookahead here to make sure its an 
+            actual assignment by looking for a '=' token, if we don't find
+            then we treat this statement as an expression
+        """
 
         # look ahead to make sure this is an assignment statement
         self.lex.anchor() # insurance policy
         isAssign = False
         found_lparen = False
+        found_rparen = False
         found_lparen_cnt = 0
         found_comma = False
         tok = self.current_token
-        while (tok.type != TokenType.SEMICOLON and tok.type != TokenType.EOF):
+        while (tok.type != TokenType.SEMICOLON and tok.type != TokenType.EOF and tok.type != TokenType.LCURLY):
             if (tok.type == TokenType.COMMA):
                 found_comma = True
             if (tok.type in [TokenType.SCALAR, TokenType.LIST, TokenType.HASH]
-                    and self.prev_token.type == TokenType.LPAREN):
+                    and self.prev_token.type == TokenType.LPAREN and not found_rparen):
                 found_lparen_cnt += 1
                 found_lparen = True
             if (tok.type == TokenType.RPAREN):
+                found_rparen = True
                 found_lparen_cnt -= 1 # cxl out last lparen
             if (tok.type == TokenType.ASSIGN):
                 # this is an assign statement
@@ -260,15 +289,17 @@ class Parser:
         return self.check_for_conditional(self.expression())
 
     def if_statement(self):
+        """ If / Elsif / Else construct """
+
         if (self.current_token.type == TokenType.UNLESS):
             self.eat(TokenType.UNLESS)
             invert_logic = True
         else:
             self.eat(TokenType.IF)
             invert_logic = False
-        #self.eat(TokenType.LPAREN)
+        self.eat(TokenType.LPAREN)
         expr = self.statement()
-        #self.eat(TokenType.RPAREN)
+        self.eat(TokenType.RPAREN)
         self.eat(TokenType.LCURLY)
         if_clause = []
         else_if_conds = []
@@ -303,6 +334,8 @@ class Parser:
         return IfNode(expr, if_clause, else_if_conds, else_if_clauses, else_clause, invert_logic)
 
     def for_statement(self):
+        """ For statement or Unless statement """
+
         self.eat(TokenType.FOR)
         self.eat(TokenType.LPAREN)
         initial = None
@@ -330,6 +363,8 @@ class Parser:
         return fnode
 
     def while_statement(self):
+        """ While statement or Until statement """
+
         if (self.current_token.type == TokenType.UNTIL):
             self.eat(TokenType.UNTIL)
             invert_logic = True
@@ -362,6 +397,11 @@ class Parser:
         return wnode
 
     def function_declare_statement(self):
+        """ sub declaration statement, builds a whole other RootNode
+            which make a sub its own AST to be added to a hash inside the 
+            VM to switch to whenever the program calls this sub
+        """
+
         self.eat(TokenType.FUNCTION_DECLARE)
         name = str(self.current_token.value)
         if (name not in AST.func_table):
@@ -379,6 +419,8 @@ class Parser:
         return AST()
 
     def do_statement(self):
+        """ Handles both the do/while and do statements """
+
         self.eat(TokenType.LCURLY)
         do_body = []
         while (self.current_token.type != TokenType.RCURLY):
@@ -399,12 +441,16 @@ class Parser:
             return DoStatementNode(do_body)
 
     def function_call(self):
+        """ Handles the calling of a function/sub """
+
         name = str(self.current_token.value)
         self.eat(TokenType.ID)
         args = self.consume_list()
         return FuncCallNode(name, args)
 
     def expression(self):
+        """ Start of an expression """
+
         result = self.term()
         while self.current_token.type in (
                 TokenType.PLUS,
@@ -628,9 +674,6 @@ class Parser:
                 name = str(self.current_token.value)
                 self.eat(TokenType.ID)
             return ListMaxIndexNode(name)
-
-        elif (self.restrict_string_interpolation):
-            return None
 
         elif (token.type == TokenType.LBRACKET):
             self.eat(TokenType.LBRACKET)

@@ -64,7 +64,7 @@ class Value(object):
         else:
             return self._val
 
-    def stringify(self):
+    def stringify(self, sep=''):
         """ Attempts to coerce 'Value' into string form"""
 
         if (self.type == "Undef"):
@@ -76,7 +76,7 @@ class Value(object):
                 return str(self._val)
         elif (self.type == "List" or self.type == "Hash"):
             #return str(len(self._val))
-            return ''.join(map(lambda x: str(x), self._val))
+            return sep.join(map(lambda x: str(x), self._val))
         else:
             return ""
 

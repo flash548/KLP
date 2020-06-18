@@ -1,3 +1,16 @@
+###############################################################################
+#
+# Filename: VM.py
+#
+# Description:
+# This file is the Virtual Machine for KLP.
+#
+# Revision History:
+#   31-May-20: Initial release/documentation
+#   18-Jun-20: Added 'say' from later Perl versions!
+# 
+###############################################################################
+
 from Value import *
 from DataStack import DataStack
 from regexp_funcs import *
@@ -145,11 +158,18 @@ class VM:
         print ""
 
     def run(self):
+        """ Runs the Program Stack """
         while self.step():
             pass
 
 
     def step(self):
+        """ Runs one bytecode (opcode) from pgm stack 
+            Its smart enough to know if reaching end of pgm stack
+            it checks if there's more pgm stacks (meaning we are leaving)
+            a subroutine, and popping back to previous stack
+        """
+
         if self.pc < len(self.pgm_stack):
             self.execute(self.pgm_stack[self.pc])
             return True
@@ -164,6 +184,8 @@ class VM:
             return False  # no more code to execute
 
     def execute(self, instr):
+        """ Executes a bytecode/ opcode """
+        
         self.pc += 1 # incr to next instruction, unless it gets mod'd in here
 
         if (instr.opcode == "POP"):
@@ -764,6 +786,8 @@ class VM:
             BuiltIns.do_link(self, args)
         elif (name == 'chmod'):
             BuiltIns.do_chmod(self, args)
+        elif (name == 'say'):
+            BuiltIns.do_say(self, fh, args)
         else:
             raise Exception("Undefined built-in: " + name)
 

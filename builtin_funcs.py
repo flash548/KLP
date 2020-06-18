@@ -12,6 +12,7 @@
 #
 # Revision History:
 #   31-May-20: Initial release/documentation
+#   18-Jun-20: Added 'say' from later Perl versions!
 # 
 ###############################################################################
 
@@ -63,6 +64,11 @@ class BuiltIns():
         if end != '':
             sys.stdout.write(end)
         vm.stack.push(Value(1))
+
+    @staticmethod
+    def do_say(vm, fh, argv):
+        BuiltIns.do_print(vm, fh, argv)
+        BuiltIns.do_print(vm, fh, [Value('\n')])
 
     @staticmethod
     def do_die(vm, argv):

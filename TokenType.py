@@ -1,3 +1,17 @@
+###############################################################################
+#
+# Filename: TokenType.py
+#
+# Description:
+# This file contains all possible Tokens, and the builtin function names as
+# reserved IDs
+#
+# Revision History:
+#   31-May-20: Initial release/documentation
+#   18-Jun-20: Added 'say' from later Perl versions!
+# 
+###############################################################################
+
 class Token:
     def __init__(self, type, value):
         self.type = type
@@ -150,5 +164,8 @@ class TokenType:
         'rename',
         'link',
         'exit',
+
+        # PERL 5 functions
+        'say',
 
     ]

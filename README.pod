@@ -143,6 +143,17 @@ I hope to change this soon.
 
 - No '..' operator yet...
 
+=head1 GOTCHAS
+
+- Remember calling a function in Perl 1.0 requires different syntax - use 'do'
+    
+    sub test {
+        print "Hi";
+    }
+
+    do test();
+
+
 =head1 TESTS
 
 This is how KLP stacks up to the original Perl 1.0 test suite

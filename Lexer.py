@@ -31,7 +31,7 @@ class Lexer:
         self.anchor_val = 0 # position anchor the parser can use to come back to 
 
         # chars allowable as first char after a sigil - for the special variables
-        self.allowable_var_chars = ['$', '+', '.', '_', '@', '#', '!', '^', '%', '\\', '/', '*', ',' ]
+        self.allowable_var_chars = ['$', '?', '+', '.', '_', '@', '#', '!', '^', '%', '\\', '/', '*', ',' ]
 
     def error(self):
         raise Exception("Invalid character. Line number: " + str(self.line_number))

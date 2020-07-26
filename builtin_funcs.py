@@ -67,6 +67,8 @@ class BuiltIns():
 
     @staticmethod
     def do_say(vm, fh, argv):
+        """ Implementation of 'say' (same as print but with \n) """
+
         BuiltIns.do_print(vm, fh, argv)
         BuiltIns.do_print(vm, fh, [Value('\n')])
 
@@ -119,6 +121,12 @@ class BuiltIns():
             vm.set_variable('?', Value(e.returncode), 'scalar')
 
         vm.stack.push(Value(result))
+    
+    @staticmethod
+    def do_scalar(vm, argv):
+        """ Returns length of a list """
+        if argv[0].type == 'List': vm.stack.push(Value(len(argv[0])))
+        else: vm.stack.push(Value(len(argv)))
 
     @staticmethod
     def do_length(vm, argv):

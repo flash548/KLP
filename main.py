@@ -29,6 +29,9 @@ vm.set_variable('ENV', env, 'hash')
 # set $$
 vm.set_variable('$', Value(os.getpid()), 'scalar')
 
+# set $\
+vm.set_variable("\\", Value("\n"), 'scalar')
+
 # set the value of stdin, stdout, stderr within the VM
 vm.set_variable('stdin', Value(sys.stdin), 'raw')
 vm.set_variable('stdout', Value(sys.stdout), 'raw')

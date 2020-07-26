@@ -591,7 +591,7 @@ class VM:
                 in_curly = False
             elif (string_const[i].isspace() and in_var and in_curly):
                 raise Exception("Invalid variable string: " + varname)
-            elif ((not string_const[i].isalnum() and string_const[i] not in [ '_', '.' ]) and in_var):
+            elif ((not string_const[i].isalnum() and string_const[i] not in [ '!', '?', '\\', '_', '.' ]) and in_var):
                 vars[var_to_replace] = varname
                 varname = ""
                 var_to_replace = ""
@@ -608,6 +608,8 @@ class VM:
 
         if in_var:
             vars[var_to_replace] = varname
+
+        print vars
 
         # now replace all the vars with their looked up values
         #  these resolves will be in scalar context as a string
@@ -694,7 +696,7 @@ class VM:
 
     def perform_func_call(self, name, fh, argslen):
         args = []
-        for i in range(0, argslen):
+        for _ in range(0, argslen):
             args.append(self.stack.pop())
 
         if (name == "print"):
@@ -788,6 +790,8 @@ class VM:
             BuiltIns.do_chmod(self, args)
         elif (name == 'say'):
             BuiltIns.do_say(self, fh, args)
+        elif (name == 'scalar'):
+            BuiltIns.do_scalar(self, args)
         else:
             raise Exception("Undefined built-in: " + name)
 

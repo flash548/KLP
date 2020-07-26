@@ -118,6 +118,7 @@ class TokenType:
     FILEHANDLE = 'FILEHANDLE'
     TERNARY = 'TERNARY'
     REPEAT = 'REPEAT'
+    IN = 'IN'
 
     BUILTINS = [
         'print',
@@ -167,5 +168,6 @@ class TokenType:
 
         # PERL 5 functions
         'say',
+        'scalar',
 
     ]

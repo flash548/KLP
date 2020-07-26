@@ -616,7 +616,7 @@ class ScalarIncrDecrNode(AST):
                 self._expr.emit(vm)
             vm.append_instruction(Instruction("INCR SCALAR", [ self._name, has_idx ]))
             if self._rval:
-                vm.append_instruction(Instruction("POP", []))
+                #vm.append_instruction(Instruction("POP", []))
                 self._rval._right.emit(vm)
                 vm.append_instruction(Instruction("BINOP", [ str(self._rval._op) ]))
          

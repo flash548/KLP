@@ -4,6 +4,14 @@
 
 Kinda Like Perl (KLP)
 
+- Note there's two branches:
+    - master
+    - rogue 
+
+Perl1 branch aims to be as close to possible as the original Perl 1.0 (except for the failed tests below).
+Rogue branch adds some non-Perl1 features like say() and will have more and more non-Perl1 nice-to-haves.
+
+
 =head1 USAGE
 
 From within other source:
